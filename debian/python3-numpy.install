@@ -1,0 +1,10 @@
+debian/dh_numpy3 usr/bin
+debian/numpy3.pm usr/share/perl5/Debian/Debhelper/Sequence/
+debian/versions usr/share/numpy3/
+usr/bin/f2py3
+usr/bin/f2py3.*
+usr/lib/python3*/*-packages/*.egg-info
+usr/lib/python3*/*-packages/*/*.py
+usr/lib/python3*/*-packages/*/*/*.cpython-3?[!d][!d]*.so
+usr/lib/python3*/*-packages/*/*/*/libnpymath.a
+usr/lib/python3*/*-packages/numpy/

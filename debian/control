@@ -1,0 +1,83 @@
+Source: numpy
+Section: python
+Priority: optional
+Maintainer: Sandro Tosi <morph@debian.org>
+Uploaders: Debian Python Team <team+python@tracker.debian.org>,
+Build-Depends: cython3 (>= 0.29.24),
+               debhelper-compat (= 11),
+               dh-python,
+               dvisvgm,
+               gfortran,
+               libblas-dev [!arm !m68k],
+               liblapack-dev [!arm !m68k],
+               python-imageio-doc <!nodoc>,
+               python-matplotlib-doc <!nodoc>,
+               python-pandas-doc <!nodoc>,
+               python-scipy-doc <!nodoc>,
+               python-skimage-doc <!nodoc>,
+               python3-all-dev,
+               python3-doc <!nodoc>,
+               python3-hypothesis (>= 5.19.1) <!nocheck>,
+               python3-ipython <!nodoc>,
+               python3-matplotlib <!nodoc>,
+               python3-numpydoc <!nodoc>,
+               python3-pydata-sphinx-theme (>= 0.7.1) <!nodoc>,
+               python3-pytest <!nocheck>,
+               python3-scipy <!nocheck>,
+               python3-scipy <!nodoc>,
+               python3-setuptools,
+               python3-sphinx (>= 2) <!nodoc>,
+               python3-tz <!nocheck>,
+               texlive-latex-base <!nodoc>,
+               texlive-latex-extra <!nodoc>,
+Standards-Version: 4.6.0.1
+Vcs-Git: https://salsa.debian.org/python-team/packages/numpy.git
+Vcs-Browser: https://salsa.debian.org/python-team/packages/numpy
+Homepage: http://www.numpy.org/
+
+Package: python3-numpy
+Architecture: any
+Depends: python3-pkg-resources,
+         ${misc:Depends},
+         ${python3:Depends},
+         ${shlibs:Depends},
+Suggests: gcc,
+          gfortran,
+          python-numpy-doc,
+          python3-dev,
+          python3-pytest,
+Provides: dh-sequence-numpy3,
+          python3-f2py,
+          python3-numpy-dev,
+          ${numpy3:Provides},
+          ${python3:Provides},
+Description: Fast array facility to the Python 3 language
+ Numpy contains a powerful N-dimensional array object, sophisticated
+ (broadcasting) functions, tools for integrating C/C++ and Fortran
+ code, and useful linear algebra, Fourier transform, and random number
+ capabilities.
+ .
+ Numpy replaces the python-numeric and python-numarray modules which are
+ now deprecated and shouldn't be used except to support older
+ software.
+ .
+ This package contains Numpy for Python 3.
+
+Package: python-numpy-doc
+Depends: ${misc:Depends},
+         ${sphinxdoc:Depends},
+Section: doc
+Architecture: all
+Multi-Arch: foreign
+Build-Profiles: <!nodoc>
+Description: NumPy documentation
+ Numpy contains a powerful N-dimensional array object, sophisticated
+ (broadcasting) functions, tools for integrating C/C++ and Fortran
+ code, and useful linear algebra, Fourier transform, and random number
+ capabilities.
+ .
+ Numpy replaces the python-numeric and python-numarray modules which
+ are now deprecated and shouldn't be used except to support older
+ software.
+ .
+ This package contains documentation for Numpy and f2py.
