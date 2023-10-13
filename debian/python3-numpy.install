@@ -8,3 +8,4 @@ usr/lib/python3*/*-packages/*/*.py
 usr/lib/python3*/*-packages/*/*/*.cpython-3?[!d][!d]*.so
 usr/lib/python3*/*-packages/*/*/*/libnpymath.a
 usr/lib/python3*/*-packages/numpy/
+

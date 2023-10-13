@@ -1,0 +1,16 @@
+Description: Use `Py_SET_TYPE` macro instead of assigning to `Py_TYPE`
+Origin: upstream, https://github.com/numpy/numpy/commit/f53077617d5d92ab76cc9a01bb55913b1f4fcbe7
+Author: Joshua Himmens <joshua.himmens@gmail.com>
+Last-Update: 2021-10-07
+
+--- a/numpy/core/src/multiarray/arraytypes.c.src
++++ b/numpy/core/src/multiarray/arraytypes.c.src
+@@ -62,7 +62,7 @@
+     PyArrayObject_fields new_fields;
+     new_fields.flags = PyArray_FLAGS(orig);
+     /* Set to NULL so the dummy object can be distinguished from the real one */
+-    Py_TYPE(&new_fields) = NULL;
++    Py_SET_TYPE(&new_fields, NULL);
+     new_fields.base = (PyObject *)orig;
+     return new_fields;
+ }

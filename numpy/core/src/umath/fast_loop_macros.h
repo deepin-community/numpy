@@ -10,6 +10,8 @@
 #ifndef _NPY_UMATH_FAST_LOOP_MACROS_H_
 #define _NPY_UMATH_FAST_LOOP_MACROS_H_
 
+#include <assert.h>
+
 /*
  * MAX_STEP_SIZE is used to determine if we need to use SIMD version of the ufunc.
  * Very large step size can be as slow as processing it using scalar. The
@@ -99,9 +101,19 @@ abs_ptrdiff(char *a, char *b)
 
 #define IS_OUTPUT_CONT(tout) (steps[1] == sizeof(tout))
 
-#define IS_BINARY_REDUCE ((args[0] == args[2])\
+/*
+ * Make sure dimensions is non-zero with an assert, to allow subsequent code
+ * to ignore problems of accessing invalid memory
+ */
+
+#define IS_BINARY_REDUCE (assert(dimensions[0] != 0), \
+        (args[0] == args[2])\
         && (steps[0] == steps[2])\
         && (steps[0] == 0))
+
+/* input contiguous (for binary reduces only) */
+#define IS_BINARY_REDUCE_INPUT_CONT(tin) (assert(dimensions[0] != 0), \
+         steps[1] == sizeof(tin))
 
 /* binary loop input and output contiguous */
 #define IS_BINARY_CONT(tin, tout) (steps[0] == sizeof(tin) && \
@@ -252,6 +264,34 @@ abs_ptrdiff(char *a, char *b)
     TYPE io1 = *(TYPE *)iop1; \
     BINARY_REDUCE_LOOP_INNER
 
+/*
+ * op should be the code working on `TYPE in2` and
+ * reading/storing the result in `TYPE *io1`
+ */
+#define BASE_BINARY_REDUCE_LOOP(TYPE, op) \
+    BINARY_REDUCE_LOOP_INNER { \
+        const TYPE in2 = *(TYPE *)ip2; \
+        op; \
+    }
+
+#define BINARY_REDUCE_LOOP_FAST_INNER(TYPE, op)\
+    /* condition allows compiler to optimize the generic macro */ \
+    if(IS_BINARY_REDUCE_INPUT_CONT(TYPE)) { \
+        BASE_BINARY_REDUCE_LOOP(TYPE, op) \
+    } \
+    else { \
+        BASE_BINARY_REDUCE_LOOP(TYPE, op) \
+    }
+
+#define BINARY_REDUCE_LOOP_FAST(TYPE, op)\
+    do { \
+        char *iop1 = args[0]; \
+        TYPE io1 = *(TYPE *)iop1; \
+        BINARY_REDUCE_LOOP_FAST_INNER(TYPE, op); \
+        *((TYPE *)iop1) = io1; \
+    } \
+    while (0)
+
 #define IS_BINARY_STRIDE_ONE(esize, vsize) \
     ((steps[0] == esize) && \
      (steps[1] == esize) && \
@@ -337,19 +377,6 @@ abs_ptrdiff(char *a, char *b)
      abs_ptrdiff(args[2], args[1]) >= (esize))
 
 #undef abs_ptrdiff
-
-#define IS_BLOCKABLE_BINARY_BOOL(esize, vsize) \
-    (steps[0] == (esize) && steps[0] == steps[1] && steps[2] == (1) && \
-     npy_is_aligned(args[1], (esize)) && \
-     npy_is_aligned(args[0], (esize)))
-
-#define IS_BLOCKABLE_BINARY_SCALAR1_BOOL(esize, vsize) \
-    (steps[0] == 0 && steps[1] == (esize) && steps[2] == (1) && \
-     npy_is_aligned(args[1], (esize)))
-
-#define IS_BLOCKABLE_BINARY_SCALAR2_BOOL(esize, vsize) \
-    (steps[0] == (esize) && steps[1] == 0 && steps[2] == (1) && \
-     npy_is_aligned(args[0], (esize)))
 
 /* align var to alignment */
 #define LOOP_BLOCK_ALIGN_VAR(var, type, alignment)\

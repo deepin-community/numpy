@@ -1,15 +1,15 @@
 Tests: python3
-Depends: build-essential, python3-numpy, python3-all, python3-pytest, python3-tz, python3-hypothesis
+Depends: build-essential, python3-numpy, python3-all, python3-all-dev, python3-pytest, python3-tz, python3-hypothesis, python3-typing-extensions
 
 #needs root for update-alternatives
 Tests: openblas
 Restrictions: needs-root
-Depends: python3-numpy, python3-all, python3-pytest, python3-tz, libopenblas-base, dpkg-dev, gcc, python3-hypothesis
+Depends: python3-numpy, python3-all, python3-pytest, python3-tz, libopenblas0, dpkg-dev, gcc, python3-hypothesis, python3-typing-extensions
 
 #needs root for update-alternatives
 Tests: atlas
 Restrictions: needs-root
-Depends: python3-numpy, python3-all, python3-pytest, python3-tz, libatlas3-base, dpkg-dev, gcc, python3-hypothesis
+Depends: python3-numpy, python3-all, python3-pytest, python3-tz, libatlas3-base, dpkg-dev, gcc, python3-hypothesis, python3-typing-extensions
 
 Tests: f2py
 Depends: build-essential, gfortran, python3-numpy, python3-all, python3-all-dev

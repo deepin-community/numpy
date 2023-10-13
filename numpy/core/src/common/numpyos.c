@@ -1,11 +1,9 @@
+#define NPY_NO_DEPRECATED_API NPY_API_VERSION
+#define _MULTIARRAYMODULE
+
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#include <locale.h>
-#include <stdio.h>
-
-#define NPY_NO_DEPRECATED_API NPY_API_VERSION
-#define _MULTIARRAYMODULE
 #include "numpy/arrayobject.h"
 #include "numpy/npy_math.h"
 
@@ -13,14 +11,13 @@
 
 #include "npy_pycompat.h"
 
+#include <locale.h>
+#include <stdio.h>
+
 #ifdef HAVE_STRTOLD_L
 #include <stdlib.h>
 #ifdef HAVE_XLOCALE_H
-    /*
-     * the defines from xlocale.h are included in locale.h on some systems;
-     * see gh-8367
-     */
-    #include <xlocale.h>
+#include <xlocale.h>  // xlocale was removed in glibc 2.26, see gh-8367
 #endif
 #endif
 
@@ -773,27 +770,12 @@ NumPyOS_ascii_ftoLf(FILE *fp, long double *value)
 NPY_NO_EXPORT npy_longlong
 NumPyOS_strtoll(const char *str, char **endptr, int base)
 {
-#if defined HAVE_STRTOLL
     return strtoll(str, endptr, base);
-#elif defined _MSC_VER
-    return _strtoi64(str, endptr, base);
-#else
-    /* ok on 64 bit posix */
-    return PyOS_strtol(str, endptr, base);
-#endif
 }
 
 NPY_NO_EXPORT npy_ulonglong
 NumPyOS_strtoull(const char *str, char **endptr, int base)
 {
-#if defined HAVE_STRTOULL
     return strtoull(str, endptr, base);
-#elif defined _MSC_VER
-    return _strtoui64(str, endptr, base);
-#else
-    /* ok on 64 bit posix */
-    return PyOS_strtoul(str, endptr, base);
-#endif
 }
-
 

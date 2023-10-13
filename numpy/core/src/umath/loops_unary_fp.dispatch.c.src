@@ -1,6 +1,9 @@
 /*@targets
  ** $maxopt baseline
- ** sse2 vsx2 neon
+ ** sse2 sse41
+ ** vsx2
+ ** neon asimd
+ ** vx vxe
  **/
 /**
  * Force use SSE only on x86, even if AVX2 or AVX512F are enabled
@@ -16,7 +19,7 @@
 /**********************************************************
  ** Scalars
  **********************************************************/
-#if !NPY_SIMD
+#if !NPY_SIMD_F32
 NPY_FINLINE float c_recip_f32(float a)
 { return 1.0f / a; }
 NPY_FINLINE float c_abs_f32(float a)
@@ -27,7 +30,7 @@ NPY_FINLINE float c_abs_f32(float a)
 }
 NPY_FINLINE float c_square_f32(float a)
 { return a * a; }
-#endif // !NPY_SIMD
+#endif // !NPY_SIMD_F32
 
 #if !NPY_SIMD_F64
 NPY_FINLINE double c_recip_f64(double a)
@@ -64,6 +67,18 @@ NPY_FINLINE double c_square_f64(double a)
     #define c_sqrt_f32 npy_sqrtf
     #define c_sqrt_f64 npy_sqrt
 #endif
+
+#define c_ceil_f32 npy_ceilf
+#define c_ceil_f64 npy_ceil
+
+#define c_trunc_f32 npy_truncf
+#define c_trunc_f64 npy_trunc
+
+#define c_floor_f32 npy_floorf
+#define c_floor_f64 npy_floor
+
+#define c_rint_f32 npy_rintf
+#define c_rint_f64 npy_rint
 
 /********************************************************************************
  ** Defining the SIMD kernels
@@ -114,6 +129,9 @@ NPY_FINLINE double c_square_f64(double a)
         #if __clang_major__ < 10
         // Clang before v10
         #define WORKAROUND_CLANG_RECIPROCAL_BUG 1
+        #elif defined(_MSC_VER)
+        // clang-cl has the same bug
+        #define WORKAROUND_CLANG_RECIPROCAL_BUG 1
         #elif defined(NPY_CPU_X86) || defined(NPY_CPU_AMD64)
         // Clang v10+, targeting i386 or x86_64
         #define WORKAROUND_CLANG_RECIPROCAL_BUG 0
@@ -130,14 +148,14 @@ NPY_FINLINE double c_square_f64(double a)
 /**begin repeat
  * #TYPE = FLOAT, DOUBLE#
  * #sfx  = f32, f64#
- * #VCHK = NPY_SIMD, NPY_SIMD_F64#
+ * #VCHK = NPY_SIMD_F32, NPY_SIMD_F64#
  */
 #if @VCHK@
 /**begin repeat1
- * #kind     = sqrt, absolute, square, reciprocal#
- * #intr     = sqrt, abs,      square, recip#
- * #repl_0w1 = 0,    0,        0,      1#
- * #RECIP_WORKAROUND = 0, 0,   0,      WORKAROUND_CLANG_RECIPROCAL_BUG#
+ * #kind     = rint,  floor, ceil, trunc, sqrt, absolute, square, reciprocal#
+ * #intr     = rint,  floor, ceil, trunc, sqrt, abs,      square, recip#
+ * #repl_0w1 = 0*7, 1#
+ * #RECIP_WORKAROUND = 0*7, WORKAROUND_CLANG_RECIPROCAL_BUG#
  */
 /**begin repeat2
  * #STYPE  = CONTIG, NCONTIG, CONTIG,  NCONTIG#
@@ -242,12 +260,12 @@ static void simd_@TYPE@_@kind@_@STYPE@_@DTYPE@
 /**begin repeat
  * #TYPE = FLOAT, DOUBLE#
  * #sfx  = f32, f64#
- * #VCHK = NPY_SIMD, NPY_SIMD_F64#
+ * #VCHK = NPY_SIMD_F32, NPY_SIMD_F64#
  */
 /**begin repeat1
- * #kind  = sqrt, absolute, square, reciprocal#
- * #intr  = sqrt, abs,      square, recip#
- * #clear = 0,    1,        0,      0#
+ * #kind  = rint, floor, ceil, trunc, sqrt, absolute, square, reciprocal#
+ * #intr  = rint, floor, ceil, trunc, sqrt, abs,      square, recip#
+ * #clear = 0,    0,     0,    0,     0,    1,        0,      0#
  */
 NPY_NO_EXPORT void NPY_CPU_DISPATCH_CURFX(@TYPE@_@kind@)
 (char **args, npy_intp const *dimensions, npy_intp const *steps, void *NPY_UNUSED(func))
@@ -258,7 +276,7 @@ NPY_NO_EXPORT void NPY_CPU_DISPATCH_CURFX(@TYPE@_@kind@)
     npy_intp len = dimensions[0];
 #if @VCHK@
     const int lsize = sizeof(npyv_lanetype_@sfx@);
-    assert(src_step % lsize == 0 && dst_step % lsize == 0);
+    assert(len <= 1 || (src_step % lsize == 0 && dst_step % lsize == 0));
     if (is_mem_overlap(src, src_step, dst, dst_step, len)) {
         goto no_unroll;
     }

@@ -1,10 +1,10 @@
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-#include "structmember.h"
-
-/*#include <stdio.h>*/
 #define NPY_NO_DEPRECATED_API NPY_API_VERSION
 #define _MULTIARRAYMODULE
+
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <structmember.h>
+
 #include "numpy/arrayobject.h"
 
 #include "npy_config.h"
@@ -429,6 +429,7 @@ is_scalar_with_conversion(PyObject *o2, double* out_exponent)
             return NPY_NOSCALAR;
         }
         val = PyLong_AsSsize_t(value);
+        Py_DECREF(value);
         if (error_converting(val)) {
             PyErr_Clear();
             return NPY_NOSCALAR;
@@ -924,7 +925,6 @@ NPY_NO_EXPORT PyNumberMethods array_as_number = {
 
     .nb_int = (unaryfunc)array_int,
     .nb_float = (unaryfunc)array_float,
-    .nb_index = (unaryfunc)array_index,
 
     .nb_inplace_add = (binaryfunc)array_inplace_add,
     .nb_inplace_subtract = (binaryfunc)array_inplace_subtract,
@@ -941,6 +941,8 @@ NPY_NO_EXPORT PyNumberMethods array_as_number = {
     .nb_true_divide = array_true_divide,
     .nb_inplace_floor_divide = (binaryfunc)array_inplace_floor_divide,
     .nb_inplace_true_divide = (binaryfunc)array_inplace_true_divide,
+
+    .nb_index = (unaryfunc)array_index,
 
     .nb_matrix_multiply = array_matrix_multiply,
     .nb_inplace_matrix_multiply = (binaryfunc)array_inplace_matrix_multiply,

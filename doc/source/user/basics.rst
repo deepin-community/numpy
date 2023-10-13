@@ -14,7 +14,6 @@ fundamental NumPy ideas and philosophy.
    basics.io
    basics.types
    basics.broadcasting
-   basics.byteswapping
+   basics.copies
    basics.rec
-   basics.dispatch
-   basics.subclassing
+   basics.ufuncs

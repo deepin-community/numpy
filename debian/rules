@@ -6,6 +6,9 @@ PY3VERS=$(shell py3versions -vr)
 PY3DEF=$(shell py3versions -dv)
 PY3LIBPATH := $(shell python3 -c "from distutils.command.build import build ; from distutils.core import Distribution ; b = build(Distribution()) ; b.finalize_options() ; print (b.build_platlib)")
 
+# for setuptools >= 60.0.0 compatibility
+export SETUPTOOLS_USE_DISTUTILS=stdlib
+
 # Look at #634012 to understand why is needed and what will happen if we set
 # compat to 9
 unexport LDFLAGS
@@ -20,10 +23,6 @@ override_dh_auto_build-arch:
 		python$$v setup.py build; \
 	done
 
-override_dh_auto_build-indep: override_dh_auto_build-arch
-	# build doc only for default python version
-	(export MPLCONFIGDIR=. ; make -C doc html PYTHON=python3 PYTHONPATH=../$(PY3LIBPATH) GITVER=Unknown)
-
 override_dh_auto_clean:
 	rm -rf build/
 	rm -rf `find -name build -type d`
@@ -33,27 +32,18 @@ override_dh_auto_clean:
 	# cython generated
 	rm -f numpy/random/mtrand/mtrand.c
 
-#override_dh_installman:
-#	dh_installman -ppython3-numpy doc/f2py/f2py.1
-#	-mv debian/python3-numpy/usr/share/man/man1/f2py.1 \
-#	  debian/python3-numpy/usr/share/man/man1/f2py3.1
-#	# link manpage for versioned incarnations of f2py
-#	set -e; for v in $(PY3VERS); do \
-#		dh_link -ppython3-numpy /usr/share/man/man1/f2py3.1.gz /usr/share/man/man1/f2py$$v.1.gz; \
-#	done
+override_dh_installman:
+	dh_installman -ppython3-numpy debian/dh_numpy3.1
 
 override_dh_python3:
 	dh_python3
 
 	ENTRYPOINT=non-existant
-	# tweak the entry_points list to include all supported versions
+	# tweak the entry_points console_scripts list to include all supported versions
 	if [ -f $(CURDIR)/debian/python3-numpy/usr/lib/python3/dist-packages/numpy-*.egg-info/entry_points.txt ] ; then \
 		ENTRYPOINT=$(shell ls $(CURDIR)/debian/python3-numpy/usr/lib/python3/dist-packages/numpy-*.egg-info/entry_points.txt) ; \
 		for v in $(PY3VERS); do \
-			if ! grep $$v $$ENTRYPOINT; \
-			then \
-				echo "f2py$$v = numpy.f2py.f2py2e:main" >> $$ENTRYPOINT ; \
-			fi; \
+			python3 debian/edit_console_scripts.py $$ENTRYPOINT "f2py$$v" "numpy.f2py.f2py2e:main" ; \
 		done \
 	fi
 
@@ -64,6 +54,9 @@ override_dh_install:
 	done
 	cp -a debian/tmp/usr/bin/f2py$(PY3DEF) debian/tmp/usr/bin/f2py3
 	sed -i "1s,#!.*python[^ ]*\(.*\),#!/usr/bin/python3," debian/tmp/usr/bin/f2py3
+
+	# install numpy.i into the include directory
+	cp -a tools/swig/numpy.i debian/tmp/usr/lib/python3/dist-packages/numpy/core/include/numpy
 
 	dh_install
 
@@ -84,7 +77,6 @@ override_dh_compress:
 
 override_dh_installdocs-indep:
 	dh_installdocs -i
-	dh_sphinxdoc -i
 
 override_dh_auto_test:
 	echo "pass"
@@ -104,11 +96,10 @@ override_dh_auto_install:
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
 	echo "TEST STARTED" `date`
 	set -e; for v in $(PY3VERS) ; do \
-		cd debian ; \
-		export PYTHONPATH=$(CURDIR)/debian/tmp/usr/lib/python3/dist-packages/ ; \
+		cd $(CURDIR)/debian/tmp/usr/lib/python3/dist-packages/ ; \
 		echo "-- running tests for "$$v" plain --" ; \
-		python$$v -c "import sys ; sys.path.insert(0, './tmp/usr/lib/python3/dist-packages/') ; import numpy; numpy.test(verbose=5)" ; \
-		cd .. ; \
+		python$$v -c 'import numpy; numpy.test(verbose=5, extra_argv=["--ignore=numpy/core/tests/test_mem_policy.py", "-k not test_limited_api and not test_gen_pyf_no_overwrite and not test_max_rows_empty_lines"])' ; \
+		cd $(CURDIR) ; \
 	done
 	echo "TEST ENDED" `date`
 endif

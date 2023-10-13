@@ -1,10 +1,15 @@
-#ifndef _NPY_PRIVATE_COMMON_H_
-#define _NPY_PRIVATE_COMMON_H_
-#include "structmember.h"
-#include <numpy/npy_common.h>
-#include <numpy/ndarraytypes.h>
-#include <limits.h>
+#ifndef NUMPY_CORE_SRC_MULTIARRAY_COMMON_H_
+#define NUMPY_CORE_SRC_MULTIARRAY_COMMON_H_
+
+#include <structmember.h>
+#include "numpy/npy_common.h"
+#include "numpy/ndarraytypes.h"
+#include "npy_cpu_features.h"
+#include "npy_cpu_dispatch.h"
+#include "numpy/npy_cpu.h"
+
 #include "npy_import.h"
+#include <limits.h>
 
 #define error_converting(x)  (((x) == -1) && PyErr_Occurred())
 
@@ -42,9 +47,6 @@ NPY_NO_EXPORT int
 PyArray_DTypeFromObject(PyObject *obj, int maxdims,
                         PyArray_Descr **out_dtype);
 
-NPY_NO_EXPORT int
-PyArray_DTypeFromObjectHelper(PyObject *obj, int maxdims,
-                              PyArray_Descr **out_dtype, int string_status);
 
 /*
  * Returns NULL without setting an exception if no scalar is matched, a
@@ -52,12 +54,6 @@ PyArray_DTypeFromObjectHelper(PyObject *obj, int maxdims,
  */
 NPY_NO_EXPORT PyArray_Descr *
 _array_find_python_scalar_type(PyObject *op);
-
-NPY_NO_EXPORT PyArray_Descr *
-_array_typedescr_fromstr(char const *str);
-
-NPY_NO_EXPORT char *
-index2ptr(PyArrayObject *mp, npy_intp i);
 
 NPY_NO_EXPORT int
 _zerofill(PyArrayObject *ret);
@@ -182,7 +178,19 @@ check_and_adjust_axis(int *axis, int ndim)
 }
 
 /* used for some alignment checks */
-#define _ALIGN(type) offsetof(struct {char c; type v;}, v)
+/* 
+ * GCC releases before GCC 4.9 had a bug in _Alignof.  See GCC bug 52023
+ * <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52023>.
+ * clang versions < 8.0.0 have the same bug.
+ */
+#if (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112 \
+     || (defined __GNUC__ && __GNUC__ < 4 + (__GNUC_MINOR__ < 9) \
+  && !defined __clang__) \
+     || (defined __clang__ && __clang_major__ < 8))
+# define _ALIGN(type) offsetof(struct {char c; type v;}, v)
+#else
+# define _ALIGN(type) _Alignof(type)
+#endif
 #define _UINT_ALIGN(type) npy_uint_alignment(sizeof(type))
 /*
  * Disable harmless compiler warning "4116: unnamed type definition in
@@ -247,6 +255,15 @@ npy_uint_alignment(int itemsize)
  * compared to memchr it returns one stride past end instead of NULL if needle
  * is not found.
  */
+#ifdef __clang__
+    /*
+     * The code below currently makes use of !NPY_ALIGNMENT_REQUIRED, which
+     * should be OK but causes the clang sanitizer to warn.  It may make
+     * sense to modify the code to avoid this "unaligned" access but
+     * it would be good to carefully check the performance changes.
+     */
+    __attribute__((no_sanitize("alignment")))
+#endif
 static NPY_INLINE char *
 npy_memchr(char * haystack, char needle,
            npy_intp stride, npy_intp size, npy_intp * psubloopsize, int invert)
@@ -291,6 +308,34 @@ npy_memchr(char * haystack, char needle,
     return p;
 }
 
+
+/*
+ * Simple helper to create a tuple from an array of items. The `make_null_none`
+ * flag means that NULL entries are replaced with None, which is occasionally
+ * useful.
+ */
+static NPY_INLINE PyObject *
+PyArray_TupleFromItems(int n, PyObject *const *items, int make_null_none)
+{
+    PyObject *tuple = PyTuple_New(n);
+    if (tuple == NULL) {
+        return NULL;
+    }
+    for (int i = 0; i < n; i ++) {
+        PyObject *tmp;
+        if (!make_null_none || items[i] != NULL) {
+            tmp = items[i];
+        }
+        else {
+            tmp = Py_None;
+        }
+        Py_INCREF(tmp);
+        PyTuple_SET_ITEM(tuple, i, tmp);
+    }
+    return tuple;
+}
+
+
 #include "ucsnarrow.h"
 
 /*
@@ -315,5 +360,4 @@ new_array_for_sum(PyArrayObject *ap1, PyArrayObject *ap2, PyArrayObject* out,
  */
 #define NPY_ITER_REDUCTION_AXIS(axis) (axis + (1 << (NPY_BITSOF_INT - 2)))
 
-#endif
-
+#endif  /* NUMPY_CORE_SRC_MULTIARRAY_COMMON_H_ */
