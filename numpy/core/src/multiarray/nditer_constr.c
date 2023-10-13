@@ -11,10 +11,10 @@
  */
 #define NPY_NO_DEPRECATED_API NPY_API_VERSION
 
-/* Indicate that this .c file is allowed to include the header */
+/* Allow this .c file to include nditer_impl.h */
 #define NPY_ITERATOR_IMPLEMENTATION_CODE
-#include "nditer_impl.h"
 
+#include "nditer_impl.h"
 #include "arrayobject.h"
 #include "array_coercion.h"
 #include "templ_common.h"
@@ -449,6 +449,11 @@ NpyIter_AdvancedNew(int nop, PyArrayObject **op_in, npy_uint32 flags,
     /*
      * If REFS_OK was specified, check whether there are any
      * reference arrays and flag it if so.
+     *
+     * NOTE: This really should be unnecessary, but chances are someone relies
+     *       on it.  The iterator itself does not require the API here
+     *       as it only does so for casting/buffering.  But in almost all
+     *       use-cases the API will be required for whatever operation is done.
      */
     if (flags & NPY_ITER_REFS_OK) {
         for (iop = 0; iop < nop; ++iop) {
@@ -987,7 +992,7 @@ npyiter_check_per_op_flags(npy_uint32 op_flags, npyiter_opitflags *op_itflags)
 }
 
 /*
- * Prepares a a constructor operand.  Assumes a reference to 'op'
+ * Prepares a constructor operand.  Assumes a reference to 'op'
  * is owned, and that 'op' may be replaced.  Fills in 'op_dataptr',
  * 'op_dtype', and may modify 'op_itflags'.
  *
@@ -1123,13 +1128,12 @@ npyiter_prepare_one_operand(PyArrayObject **op,
         if (op_flags & NPY_ITER_NBO) {
             /* Check byte order */
             if (!PyArray_ISNBO((*op_dtype)->byteorder)) {
-                PyArray_Descr *nbo_dtype;
-
                 /* Replace with a new descr which is in native byte order */
-                nbo_dtype = PyArray_DescrNewByteorder(*op_dtype, NPY_NATIVE);
-                Py_DECREF(*op_dtype);
-                *op_dtype = nbo_dtype;
-
+                Py_SETREF(*op_dtype,
+                          PyArray_DescrNewByteorder(*op_dtype, NPY_NATIVE));
+                if (*op_dtype == NULL) {
+                    return 0;
+                }                
                 NPY_IT_DBG_PRINT("Iterator: Setting NPY_OP_ITFLAG_CAST "
                                     "because of NPY_ITER_NBO\n");
                 /* Indicate that byte order or alignment needs fixing */
@@ -1218,22 +1222,6 @@ npyiter_prepare_operands(int nop, PyArrayObject **op_in,
                         flags,
                         op_flags[iop], &op_itflags[iop])) {
             goto fail_iop;
-        }
-    }
-
-    /* If all the operands were NULL, it's an error */
-    if (op[0] == NULL) {
-        int all_null = 1;
-        for (iop = 1; iop < nop; ++iop) {
-            if (op[iop] != NULL) {
-                all_null = 0;
-                break;
-            }
-        }
-        if (all_null) {
-            PyErr_SetString(PyExc_ValueError,
-                    "At least one iterator operand must be non-NULL");
-            goto fail_nop;
         }
     }
 
@@ -1400,15 +1388,15 @@ check_mask_for_writemasked_reduction(NpyIter *iter, int iop)
 /*
  * Check whether a reduction is OK based on the flags and the operand being
  * readwrite. This path is deprecated, since usually only specific axes
- * should be reduced. If axes are specified explicitely, the flag is
+ * should be reduced. If axes are specified explicitly, the flag is
  * unnecessary.
  */
 static int
 npyiter_check_reduce_ok_and_set_flags(
         NpyIter *iter, npy_uint32 flags, npyiter_opitflags *op_itflags,
-        int dim) {
+        int iop, int maskop, int dim) {
     /* If it's writeable, this means a reduction */
-    if (*op_itflags & NPY_OP_ITFLAG_WRITE) {
+    if (op_itflags[iop] & NPY_OP_ITFLAG_WRITE) {
         if (!(flags & NPY_ITER_REDUCE_OK)) {
             PyErr_Format(PyExc_ValueError,
                     "output operand requires a reduction along dimension %d, "
@@ -1416,17 +1404,35 @@ npyiter_check_reduce_ok_and_set_flags(
                     "does not match the expected output shape.", dim);
             return 0;
         }
-        if (!(*op_itflags & NPY_OP_ITFLAG_READ)) {
+        if (!(op_itflags[iop] & NPY_OP_ITFLAG_READ)) {
             PyErr_SetString(PyExc_ValueError,
                     "output operand requires a reduction, but is flagged as "
                     "write-only, not read-write");
+            return 0;
+        }
+        /*
+         * The ARRAYMASK can't be a reduction, because
+         * it would be possible to write back to the
+         * array once when the ARRAYMASK says 'True',
+         * then have the reduction on the ARRAYMASK
+         * later flip to 'False', indicating that the
+         * write back should never have been done,
+         * and violating the strict masking semantics
+         */
+        if (iop == maskop) {
+            PyErr_SetString(PyExc_ValueError,
+                    "output operand requires a "
+                    "reduction, but is flagged as "
+                    "the ARRAYMASK operand which "
+                    "is not permitted to be the "
+                    "result of a reduction");
             return 0;
         }
         NPY_IT_DBG_PRINT("Iterator: Indicating that a reduction is"
                          "occurring\n");
 
         NIT_ITFLAGS(iter) |= NPY_ITFLAG_REDUCE;
-        *op_itflags |= NPY_OP_ITFLAG_REDUCE;
+        op_itflags[iop] |= NPY_OP_ITFLAG_REDUCE;
     }
     return 1;
 }
@@ -1609,42 +1615,9 @@ npyiter_fill_axisdata(NpyIter *iter, npy_uint32 flags, npyiter_opitflags *op_itf
                             goto operand_different_than_broadcast;
                         }
                         /* If it's writeable, this means a reduction */
-                        if (op_itflags[iop] & NPY_OP_ITFLAG_WRITE) {
-                            if (!(flags & NPY_ITER_REDUCE_OK)) {
-                                PyErr_SetString(PyExc_ValueError,
-                                        "output operand requires a "
-                                        "reduction, but reduction is "
-                                        "not enabled");
-                                return 0;
-                            }
-                            if (!(op_itflags[iop] & NPY_OP_ITFLAG_READ)) {
-                                PyErr_SetString(PyExc_ValueError,
-                                        "output operand requires a "
-                                        "reduction, but is flagged as "
-                                        "write-only, not read-write");
-                                return 0;
-                            }
-                            /*
-                             * The ARRAYMASK can't be a reduction, because
-                             * it would be possible to write back to the
-                             * array once when the ARRAYMASK says 'True',
-                             * then have the reduction on the ARRAYMASK
-                             * later flip to 'False', indicating that the
-                             * write back should never have been done,
-                             * and violating the strict masking semantics
-                             */
-                            if (iop == maskop) {
-                                PyErr_SetString(PyExc_ValueError,
-                                        "output operand requires a "
-                                        "reduction, but is flagged as "
-                                        "the ARRAYMASK operand which "
-                                        "is not permitted to be the "
-                                        "result of a reduction");
-                                return 0;
-                            }
-
-                            NIT_ITFLAGS(iter) |= NPY_ITFLAG_REDUCE;
-                            op_itflags[iop] |= NPY_OP_ITFLAG_REDUCE;
+                        if (!npyiter_check_reduce_ok_and_set_flags(
+                                iter, flags, op_itflags, iop, maskop, idim)) {
+                            return 0;
                         }
                     }
                     else {
@@ -1693,7 +1666,7 @@ npyiter_fill_axisdata(NpyIter *iter, npy_uint32 flags, npyiter_opitflags *op_itf
                             goto operand_different_than_broadcast;
                         }
                         if (!npyiter_check_reduce_ok_and_set_flags(
-                                iter, flags, &op_itflags[iop], i)) {
+                                iter, flags, op_itflags, iop, maskop, i)) {
                             return 0;
                         }
                     }
@@ -1703,8 +1676,14 @@ npyiter_fill_axisdata(NpyIter *iter, npy_uint32 flags, npyiter_opitflags *op_itf
                 }
                 else {
                     strides[iop] = 0;
+                    /*
+                     * If deleting this axis produces a reduction, but
+                     * reduction wasn't enabled, throw an error.
+                     * NOTE: We currently always allow new-axis if the iteration
+                     *       size is 1 (thus allowing broadcasting sometimes).
+                     */
                     if (!npyiter_check_reduce_ok_and_set_flags(
-                            iter, flags, &op_itflags[iop], i)) {
+                            iter, flags, op_itflags, iop, maskop, i)) {
                         return 0;
                     }
                 }
@@ -1717,7 +1696,7 @@ npyiter_fill_axisdata(NpyIter *iter, npy_uint32 flags, npyiter_opitflags *op_itf
     /* Now fill in the ITERSIZE member */
     NIT_ITERSIZE(iter) = 1;
     for (idim = 0; idim < ndim; ++idim) {
-        if (npy_mul_with_overflow_intp(&NIT_ITERSIZE(iter),
+        if (npy_mul_sizes_with_overflow(&NIT_ITERSIZE(iter),
                     NIT_ITERSIZE(iter), broadcast_shape[idim])) {
             if ((itflags & NPY_ITFLAG_HASMULTIINDEX) &&
                     !(itflags & NPY_ITFLAG_HASINDEX) &&
@@ -2541,6 +2520,11 @@ npyiter_new_temp_array(NpyIter *iter, PyTypeObject *subtype,
             i = npyiter_undo_iter_axis_perm(idim, ndim, perm, NULL);
             i = npyiter_get_op_axis(op_axes[i], &reduction_axis);
 
+            /*
+             * If i < 0, this is a new axis (the operand does not have it)
+             * so we can ignore it here.  The iterator setup will have
+             * ensured already that a potential reduction/broadcast is valid.
+             */
             if (i >= 0) {
                 NPY_IT_DBG_PRINT3("Iterator: Setting allocated stride %d "
                                     "for iterator dimension %d to %d\n", (int)i,
@@ -2569,22 +2553,6 @@ npyiter_new_temp_array(NpyIter *iter, PyTypeObject *subtype,
                 else {
                     assert(!reduction_axis || shape[i] == 1);
                     stride *= shape[i];
-                }
-            }
-            else {
-                if (shape == NULL) {
-                    /*
-                     * If deleting this axis produces a reduction, but
-                     * reduction wasn't enabled, throw an error.
-                     * NOTE: We currently always allow new-axis if the iteration
-                     *       size is 1 (thus allowing broadcasting sometimes).
-                     */
-                    if (!reduction_axis && NAD_SHAPE(axisdata) != 1) {
-                        if (!npyiter_check_reduce_ok_and_set_flags(
-                                iter, flags, op_itflags, i)) {
-                            return NULL;
-                        }
-                    }
                 }
             }
         }
@@ -3137,7 +3105,9 @@ npyiter_allocate_transfer_functions(NpyIter *iter)
     npy_intp *strides = NAD_STRIDES(axisdata), op_stride;
     NpyIter_TransferInfo *transferinfo = NBF_TRANSFERINFO(bufferdata);
 
-    int needs_api = 0;
+    /* combined cast flags, the new cast flags for each cast: */
+    NPY_ARRAYMETHOD_FLAGS cflags = PyArrayMethod_MINIMAL_FLAGS;
+    NPY_ARRAYMETHOD_FLAGS nc_flags;
 
     for (iop = 0; iop < nop; ++iop) {
         npyiter_opitflags flags = op_itflags[iop];
@@ -3163,10 +3133,11 @@ npyiter_allocate_transfer_functions(NpyIter *iter)
                                         op_dtype[iop],
                                         move_references,
                                         &transferinfo[iop].read,
-                                        &needs_api) != NPY_SUCCEED) {
+                                        &nc_flags) != NPY_SUCCEED) {
                     iop -= 1;  /* This one cannot be cleaned up yet. */
                     goto fail;
                 }
+                cflags = PyArrayMethod_COMBINED_FLAGS(cflags, nc_flags);
             }
             else {
                 transferinfo[iop].read.func = NULL;
@@ -3195,9 +3166,10 @@ npyiter_allocate_transfer_functions(NpyIter *iter)
                             mask_dtype,
                             move_references,
                             &transferinfo[iop].write,
-                            &needs_api) != NPY_SUCCEED) {
+                            &nc_flags) != NPY_SUCCEED) {
                         goto fail;
                     }
+                    cflags = PyArrayMethod_COMBINED_FLAGS(cflags, nc_flags);
                 }
                 else {
                     if (PyArray_GetDTypeTransferFunction(
@@ -3208,9 +3180,10 @@ npyiter_allocate_transfer_functions(NpyIter *iter)
                             PyArray_DESCR(op[iop]),
                             move_references,
                             &transferinfo[iop].write,
-                            &needs_api) != NPY_SUCCEED) {
+                            &nc_flags) != NPY_SUCCEED) {
                         goto fail;
                     }
+                    cflags = PyArrayMethod_COMBINED_FLAGS(cflags, nc_flags);
                 }
             }
             /* If no write back but there are references make a decref fn */
@@ -3226,9 +3199,10 @@ npyiter_allocate_transfer_functions(NpyIter *iter)
                         op_dtype[iop], NULL,
                         1,
                         &transferinfo[iop].write,
-                        &needs_api) != NPY_SUCCEED) {
+                        &nc_flags) != NPY_SUCCEED) {
                     goto fail;
                 }
+                cflags = PyArrayMethod_COMBINED_FLAGS(cflags, nc_flags);
             }
             else {
                 transferinfo[iop].write.func = NULL;
@@ -3240,8 +3214,12 @@ npyiter_allocate_transfer_functions(NpyIter *iter)
         }
     }
 
-    /* If any of the dtype transfer functions needed the API, flag it */
-    if (needs_api) {
+    /* Store the combined transfer flags on the iterator */
+    NIT_ITFLAGS(iter) |= cflags << NPY_ITFLAG_TRANSFERFLAGS_SHIFT;
+    assert(NIT_ITFLAGS(iter) >> NPY_ITFLAG_TRANSFERFLAGS_SHIFT == cflags);
+
+    /* If any of the dtype transfer functions needed the API, flag it. */
+    if (cflags & NPY_METH_REQUIRES_PYAPI) {
         NIT_ITFLAGS(iter) |= NPY_ITFLAG_NEEDSAPI;
     }
 

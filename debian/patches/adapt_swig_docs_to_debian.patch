@@ -6,35 +6,41 @@ Subject: Adapt SWIG documentation to Debian
  documentation needs adaptation.
 Origin: vendor
 Forwarded: not-needed
-Last-Update: 2015-02-08
+Last-Update: 2021-12-19
 Patch-Name: adapt_swig_docs_to_debian.patch
 ---
- doc/source/reference/swig.interface-file.rst | 4 ++--
- doc/source/reference/swig.testing.rst        | 3 ++-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ doc/source/reference/swig.interface-file.rst |   23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)
 
 --- a/doc/source/reference/swig.interface-file.rst
 +++ b/doc/source/reference/swig.interface-file.rst
-@@ -166,8 +166,8 @@ assignments in lines 19 and 20.
+@@ -166,10 +166,25 @@ assignments in lines 19 and 20.
  Using numpy.i
  -------------
  
 -The ``numpy.i`` file is currently located in the ``tools/swig``
 -sub-directory under the ``numpy`` installation directory.  Typically,
-+The ``numpy.i`` file is currently located in the ``swig``
-+sub-directory in the ``python-numpy-doc`` package directory.  Typically,
- you will want to copy it to the directory where you are developing
- your wrappers.
+-you will want to copy it to the directory where you are developing
+-your wrappers.
++The ``numpy.i`` file is shipped in ``/usr/include/pythonVERSION/numpy`` in the
++``python3-numpy`` package where ``VERSION`` is the installed version of Python
++we're using. We can ask Python for this include path using this ``Makefile``
++snippet::
++
++    INCLUDEPY := $(shell python3 -c "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'))")
++
++    %.py %_wrap.cc: %.i
++            swig                   \
++              -I$(INCLUDEPY)/numpy \
++              -py3                 \
++              -python              \
++              -c++                 \
++              -outdir .            \
++              -o $*_wrap.cc        \
++              $<
++
++So if we have a swig module ``module.i``, we can build the swig wrappers with
++``make module.py module_wrap.cc``.
  
---- a/doc/source/reference/swig.testing.rst
-+++ b/doc/source/reference/swig.testing.rst
-@@ -11,7 +11,8 @@ for a total of 888 typemaps supported "o
- typemaps, in turn, might require several unit tests in order to verify
- expected behavior for both proper and improper inputs.  Currently,
- this results in more than 1,000 individual unit tests executed when
--``make test`` is run in the ``numpy/tools/swig`` subdirectory.
-+``make test`` is run in the ``swig`` directory of ``python-numpy-doc``
-+package.
- 
- To facilitate this many similar unit tests, some high-level
- programming techniques are employed, including C and `SWIG`_ macros,
+ A simple module that only uses a single `SWIG`_ interface file should
+ include the following::

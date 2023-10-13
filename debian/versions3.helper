@@ -1,31 +1,32 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 '''
 Check if debian/versions is sane and generate substvars for numpy:Provides.
 '''
 
 import os
+import pathlib
 
 def main():
-    os.chdir(os.path.join(os.path.dirname(__file__), '..'))
+    setup_common = pathlib.Path(__file__).resolve().parent.parent / 'numpy/core/setup_common.py'
     data = {}
-    file = open('numpy/core/setup_common.py', 'r')
-    try:
-        exec(file.read(), data)
-    finally:
-        file.close()
-    file = open('debian/versions', 'r')
-    try:
+    with open(setup_common) as file:
+        for line in file:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if line.startswith(('C_ABI_VERSION', 'C_API_VERSION')):
+                key, _, value = line.split()
+                data[key] = int(value, base=16)
+    with open('debian/versions') as file:
         for line in file:
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
             key, value = line.split(None, 1)
             data[key] = value
-    finally:
-        file.close()
-    assert data['abi'] == str(data['C_ABI_VERSION'] - 0x1000000), 'Is debian/versions up-to-date?'
-    assert data['api'] == str(data['C_API_VERSION']), 'Is debian/versions up-to-date?'
+    assert data['abi'] == str(data['C_ABI_VERSION'] - 0x1000000), f"ABI version mismatch, update debian/versions; debian={data['abi']} vs numpy={str(data['C_ABI_VERSION'] - 0x1000000)}"
+    assert data['api'] == str(data['C_API_VERSION']), f"API version mismatch, update debian/versions; debian={data['api']} vs numpy={str(data['C_API_VERSION'])}"
     print('numpy3:Provides=python3-numpy-abi%s, python3-numpy-api%s' % (data['abi'], data['api']))
 
 if __name__ == '__main__':

@@ -7,3 +7,5 @@ debian_skip_tests.patch
 sphinx_no_dashW.patch
 setup-py-accept-config.patch
 distutils-check-usr-include.patch
+#python3.11.patch
+docs_disable_switcher_version.patch

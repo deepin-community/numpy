@@ -1,7 +1,7 @@
 #!/bin/sh
 set -efu
 
-PYS=$(py3versions -r 2>/dev/null)
+PYS=$(py3versions --supported 2>/dev/null)
 
 cd "$AUTOPKGTEST_TMP"
 

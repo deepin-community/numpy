@@ -411,6 +411,7 @@ NPY_FINLINE npyv_s64 npyv_divc_s64(npyv_s64 a, const npyv_s64x3 divisor)
         __m512d sum8  = _mm512_add_pd(sum16, h16);
         return _mm_cvtsd_f64(_mm512_castpd512_pd128(sum8));
     }
+
 #endif
 
 // expand the source vector and performs sum reduce

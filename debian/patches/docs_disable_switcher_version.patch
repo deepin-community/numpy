@@ -1,0 +1,11 @@
+--- a/doc/source/conf.py
++++ b/doc/source/conf.py
+@@ -188,7 +188,7 @@ html_theme_options = {
+       {"name": "Learn", "url": "https://numpy.org/numpy-tutorials/"}
+       ],
+   # Add light/dark mode and documentation version switcher:
+-  "navbar_end": ["theme-switcher", "version-switcher", "navbar-icon-links"],
++  "navbar_end": ["navbar-icon-links", ],
+   "switcher": {
+       "version_match": switcher_version,
+       "json_url": "https://numpy.org/doc/_static/versions.json",

@@ -1,19 +1,22 @@
 #define NPY_NO_DEPRECATED_API NPY_API_VERSION
+#define _MULTIARRAYMODULE
+
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <structmember.h>
-#include <string.h>
 
-#define _MULTIARRAYMODULE
 #include "numpy/arrayobject.h"
 #include "numpy/npy_3kcompat.h"
 #include "numpy/npy_math.h"
 #include "npy_config.h"
-#include "templ_common.h" /* for npy_mul_with_overflow_intp */
+#include "templ_common.h" /* for npy_mul_sizes_with_overflow */
 #include "lowlevel_strided_loops.h" /* for npy_bswap8 */
 #include "alloc.h"
 #include "ctors.h"
 #include "common.h"
 #include "simd/simd.h"
+
+#include <string.h>
 
 typedef enum {
     PACK_ORDER_LITTLE = 0,
@@ -1066,7 +1069,7 @@ arr_ravel_multi_index(PyObject *self, PyObject *args, PyObject *kwds)
             s = 1;
             for (i = dimensions.len-1; i >= 0; --i) {
                 ravel_strides[i] = s;
-                if (npy_mul_with_overflow_intp(&s, s, dimensions.ptr[i])) {
+                if (npy_mul_sizes_with_overflow(&s, s, dimensions.ptr[i])) {
                     PyErr_SetString(PyExc_ValueError,
                         "invalid dims: array size defined by dims is larger "
                         "than the maximum possible size.");
@@ -1078,7 +1081,7 @@ arr_ravel_multi_index(PyObject *self, PyObject *args, PyObject *kwds)
             s = 1;
             for (i = 0; i < dimensions.len; ++i) {
                 ravel_strides[i] = s;
-                if (npy_mul_with_overflow_intp(&s, s, dimensions.ptr[i])) {
+                if (npy_mul_sizes_with_overflow(&s, s, dimensions.ptr[i])) {
                     PyErr_SetString(PyExc_ValueError,
                         "invalid dims: array size defined by dims is larger "
                         "than the maximum possible size.");
@@ -1390,11 +1393,7 @@ arr_add_docstring(PyObject *NPY_UNUSED(dummy), PyObject *args)
 {
     PyObject *obj;
     PyObject *str;
-    #if PY_VERSION_HEX >= 0x030700A2 && (!defined(PYPY_VERSION_NUM) || PYPY_VERSION_NUM > 0x07030300)
     const char *docstr;
-    #else
-    char *docstr;
-    #endif
     static char *msg = "already has a different docstring";
 
     /* Don't add docstrings */

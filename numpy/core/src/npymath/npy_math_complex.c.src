@@ -158,9 +158,7 @@ npy_carg@c@(@ctype@ z)
 #define SCALED_CEXP_LOWERL 11357.216553474703895L
 #define SCALED_CEXP_UPPERL 22756.021937783004509L
 
-#if !defined(HAVE_CSINH@C@) || \
-    !defined(HAVE_CCOSH@C@) || \
-    !defined(HAVE_CEXP@C@)
+#if !defined(HAVE_CEXP@C@)
 
 static
 @ctype@
@@ -1696,7 +1694,7 @@ npy_catanh@c@(@ctype@ z)
     if (ax < SQRT_3_EPSILON / 2 && ay < SQRT_3_EPSILON / 2) {
         /*
          * z = 0 was filtered out above.  All other cases must raise
-         * inexact, but this is the only only that needs to do it
+         * inexact, but this is the only one that needs to do it
          * explicitly.
          */
         raise_inexact();

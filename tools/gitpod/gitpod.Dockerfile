@@ -5,7 +5,9 @@ ARG BASE_CONTAINER="numpy/numpy-dev:latest"
 FROM gitpod/workspace-base:latest as clone
 
 COPY --chown=gitpod . /tmp/numpy_repo
-RUN git clone --depth 1 file:////tmp/numpy_repo /tmp/numpy
+
+# the clone should be deep enough for versioneer to work
+RUN git clone --shallow-since=2021-05-22 file:////tmp/numpy_repo /tmp/numpy
 
 # -----------------------------------------------------------------------------
 # Using the numpy-dev Docker image as a base
@@ -32,12 +34,14 @@ COPY --from=clone --chown=gitpod /tmp/numpy ${WORKSPACE}
 WORKDIR ${WORKSPACE}
 
 # Build numpy to populate the cache used by ccache
+RUN git config --global --add safe.directory /workspace/numpy
+RUN git submodule update --init --depth=1 -- numpy/core/src/umath/svml
 RUN conda activate ${CONDA_ENV} && \ 
     python setup.py build_ext --inplace && \
     ccache -s
 
 # Gitpod will load the repository into /workspace/numpy. We remove the
-# directoy from the image to prevent conflicts
+# directory from the image to prevent conflicts
 RUN rm -rf ${WORKSPACE}
 
 # -----------------------------------------------------------------------------

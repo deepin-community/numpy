@@ -12,8 +12,8 @@ skip the requirement to have the whole numpy module working while we only care
 
 --- a/numpy/core/setup_common.py
 +++ b/numpy/core/setup_common.py
-@@ -4,7 +4,10 @@ import warnings
- import copy
+@@ -4,7 +4,10 @@ import pathlib
+ import sys
  import textwrap
  
 -from numpy.distutils.misc_util import mingw32

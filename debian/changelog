@@ -1,8 +1,134 @@
-numpy (1:1.21.5-1) UNRELEASED; urgency=medium
+numpy (1:1.24.2-1) unstable; urgency=medium
 
-  * update
+  * New upstream release
 
- -- Sandro Tosi <morph@debian.org>  Wed, 08 Jun 2022 11:13:00 +0800
+ -- Sandro Tosi <morph@debian.org>  Wed, 08 Feb 2023 22:54:23 -0500
+
+numpy (1:1.24.1-2) unstable; urgency=medium
+
+  * upload to unstable; Closes: #1027581
+
+ -- Sandro Tosi <morph@debian.org>  Sun, 08 Jan 2023 16:38:17 -0500
+
+numpy (1:1.24.1-1) experimental; urgency=medium
+
+  * New upstream release
+  * debian/tests/
+    - use py3versions --supported instead of --requested
+
+ -- Sandro Tosi <morph@debian.org>  Mon, 26 Dec 2022 20:27:08 -0500
+
+numpy (1:1.24.0-1) experimental; urgency=medium
+
+  * New upstream release
+  * debian/patches/
+    - refresh patches
+  * Stop building the -doc package; the cost of maintaining the build process
+    and packaging more and more new packages is no longer sustainable, given the
+    few users actually installing it.
+  * debian/control
+    - bump Standards-Version to 4.6.2.0 (no changes needed)
+
+ -- Sandro Tosi <morph@debian.org>  Mon, 19 Dec 2022 01:28:04 -0500
+
+numpy (1:1.23.5-2) unstable; urgency=medium
+
+  * upload to unstable
+
+ -- Sandro Tosi <morph@debian.org>  Mon, 12 Dec 2022 18:21:15 -0500
+
+numpy (1:1.23.5-1) experimental; urgency=medium
+
+  * New upstream release
+  * debian/watch
+    - track releases via GitHub APIs
+  * debian/patches
+    - refresh/disable patches
+  * debian/tests/control
+    - replace libopenblas-base (transitional pkg, now removed) with
+      libopenblas0; Closes: #1024439
+  * debian/edit_console_scripts.py, debian/rules
+    - add a new helper script to edit console_scripts section of
+      entry_points.txt
+
+ -- Sandro Tosi <morph@debian.org>  Thu, 08 Dec 2022 01:57:30 -0500
+
+numpy (1:1.23.3-1) experimental; urgency=medium
+
+  * New upstream release
+  * debian/rules
+    - set SETUPTOOLS_USE_DISTUTILS=stdlib to ensure compatibility with
+      setuptools >= 60.0.0; Thanks to Jochen Sprickerhof
+
+ -- Sandro Tosi <morph@debian.org>  Thu, 03 Nov 2022 23:33:17 -0400
+
+numpy (1:1.23.2-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Sandro Tosi <morph@debian.org>  Mon, 15 Aug 2022 00:30:33 -0400
+
+numpy (1:1.23.1-1) experimental; urgency=medium
+
+  * New upstream release
+  * debian/watch
+    - track github releases (containing extra files like SVML), not tags
+  * debian/control
+    - bump versioned b-d on cython3 to >= 0.29.30
+    - add typing-extensions to b-d, needed by tests
+  * debian/patches/
+    - refresh/drop patches
+  * debian/rules
+    - enable SVML, available by using the github release tarball
+  * debian/patches/docs_disable_switcher_version.patch
+    - disable switcher_version theme, until we can build a more recent version
+      of pydata-sphinx-theme
+  * debian/versions3.helper
+    - update to modern python3, and better error messages
+  * debian/versions
+    - bump API version to 16
+  * debian/rules
+    - rework how we run tests at build time
+  * debian/tests
+    - adjustments to autopkgtests for new upstream code
+
+ -- Sandro Tosi <morph@debian.org>  Thu, 11 Aug 2022 00:43:08 -0400
+
+numpy (1:1.22.1-1) experimental; urgency=medium
+
+  * debian/rules
+    - install dh_numpy3 manpage
+  * Install numpy.i SWIG interface in /usr/include/python3.x/numpy in the main
+    package, instead of -doc; Closes: #1000678
+  * debian/copyright
+    - extend packaging copyright years
+    - update upstream copyright information
+  * refresh patches
+  * debian/control
+    - add doxygen, breathe, and sphinx-panels to b-d, needed by doc
+    - bump b-d on python3-hypothesis to >= 6.35.0
+  * debian/versions
+    - bump API version
+  * debian/patches/PR20695.patch, debian/rules
+    - temporarily disable SVML
+
+ -- Sandro Tosi <morph@debian.org>  Tue, 18 Jan 2022 01:30:22 -0500
+
+numpy (1:1.21.5-2) unstable; urgency=medium
+
+  [ Stefano Rivera]
+  * Team upload.
+
+  [ Sandro Tosi ]
+  * debian/rules
+    - set SETUPTOOLS_USE_DISTUTILS=stdlib to ensure compatibility with
+      setuptools >= 60.0.0; Thanks to Jochen Sprickerhof; Closes: #1020135
+
+  [ Graham Inggs ]
+  * Use `Py_SET_TYPE` macro instead of assigning to `Py_TYPE` for
+    compatibility with Python 3.11.
+
+ -- Stefano Rivera <stefanor@debian.org>  Fri, 11 Nov 2022 21:03:10 +0200
 
 numpy (1:1.21.5-1) unstable; urgency=medium
 

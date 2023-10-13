@@ -4,7 +4,7 @@
 NumPy 1.21.3 Release Notes
 ==========================
 
-The NumPy 1.21.3 is a maintenance release the fixes a few bugs discovered after
+NumPy 1.21.3 is a maintenance release that fixes a few bugs discovered after
 1.21.2. It also provides 64 bit Python 3.10.0 wheels. Note a few oddities about
 Python 3.10:
 
@@ -12,7 +12,7 @@ Python 3.10:
 * The Mac Intel builds are only available in universal2 wheels.
 
 The Python versions supported in this release are 3.7-3.10. If you want to
-compile your own version using gcc-11 you will need to use gcc-11.2+ to avoid
+compile your own version using gcc-11, you will need to use gcc-11.2+ to avoid
 problems.
 
 Contributors
