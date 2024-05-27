@@ -1,3 +1,10 @@
+numpy (1:1.24.2-2) unstable; urgency=medium
+
+  * Include architecture.mk, pkg-info.mk to fix build on loong64.
+  * The build previously fails with undefined DEB_HOST_ARCH.
+
+ -- Mingcong Bai <baimingcong@uniontech.com>  Mon, 27 May 2024 12:39:35 +0800
+
 numpy (1:1.24.2-1) unstable; urgency=medium
 
   * New upstream release

@@ -1,5 +1,8 @@
 #!/usr/bin/make -f
 
+include /usr/share/dpkg/architecture.mk
+include /usr/share/dpkg/pkg-info.mk
+
 export DH_VERBOSE=1
 
 PY3VERS=$(shell py3versions -vr)
