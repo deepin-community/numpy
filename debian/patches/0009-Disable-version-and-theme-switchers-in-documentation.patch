@@ -1,0 +1,21 @@
+From: Sandro Tosi <morph@debian.org>
+Date: Sun, 3 Dec 2023 11:24:19 -0400
+Subject: Disable version and theme switchers in documentation
+
+---
+ doc/source/conf.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/source/conf.py b/doc/source/conf.py
+index ee9918f..eb37c45 100644
+--- a/doc/source/conf.py
++++ b/doc/source/conf.py
+@@ -194,7 +194,7 @@ html_theme_options = {
+       {"name": "Learn", "url": "https://numpy.org/numpy-tutorials/"}
+       ],
+   # Add light/dark mode and documentation version switcher:
+-  "navbar_end": ["theme-switcher", "version-switcher", "navbar-icon-links"],
++  "navbar_end": ["navbar-icon-links", ],
+   "switcher": {
+       "version_match": switcher_version,
+       "json_url": "https://numpy.org/doc/_static/versions.json",

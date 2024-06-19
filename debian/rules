@@ -1,105 +1,134 @@
 #!/usr/bin/make -f
 
-export DH_VERBOSE=1
+include /usr/share/dpkg/architecture.mk
+include /usr/share/dpkg/pkg-info.mk
 
-PY3VERS=$(shell py3versions -vr)
-PY3DEF=$(shell py3versions -dv)
-PY3LIBPATH := $(shell python3 -c "from distutils.command.build import build ; from distutils.core import Distribution ; b = build(Distribution()) ; b.finalize_options() ; print (b.build_platlib)")
+# The following tests are problematic and skipped:
+# - Meson's python module always returns the default interpreter, which makes
+#   Cython related tests fail on non-default python versions
+# - numpy.distutils is still shipped because of Python 3.11, which makes the
+#   test_all_modules_are_expected test fail with Python 3.12+ (where it is
+#   supposed to be dropped).
+# - The test for impossible features depends on propagation of /proc/cpuinfo
+#   flags and is flaky on buildd (and Ubuntu launchpad).
+SKIP_TESTS = \
+	cython \
+	test_all_modules_are_expected \
+	test_impossible_feature_enable
 
-# for setuptools >= 60.0.0 compatibility
-export SETUPTOOLS_USE_DISTUTILS=stdlib
+# Some tests have architecture-specific issues. Generally, these are related to
+# unexpected behavior of floating point operations (unexpected for the unit
+# tests, that is).
+ifeq ($(filter amd64 arm64 ppc64el,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += f2py
+endif
+ifneq ($(filter riscv64 armhf armel,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += FPClass test_float
+endif
+ifneq ($(filter armhf armel,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += error exception warning fpe overflow \
+	SpecialFloats \
+	test_divide_err \
+	test_empty \
+	test_errobj \
+	test_features \
+	test_invalid \
+	test_log2_special \
+	test_loss_of_precision \
+	test_nonarray_assignment \
+	test_special_values \
+	test_where \
+	test_zero_power_nonzero
+endif
+ifneq ($(filter mips64el,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += error Special test_reduce Nan FPClass
+endif
+ifneq ($(filter s390x,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += test_linear_interpolation_formula_symmetric
+endif
 
-# Look at #634012 to understand why is needed and what will happen if we set
-# compat to 9
-unexport LDFLAGS
-export ATLAS=None
+export PYBUILD_TEST_CUSTOM = 1
+export PYBUILD_TEST_ARGS = {interpreter} {dir}/runtests.py --no-build --verbose --pythonpath {build_dir} \
+	-- $(if $(SKIP_TESTS),-k 'not ($(call concat_with,$(space)or$(space),$(SKIP_TESTS)))')
+export PYBUILD_BUILD_ARGS = --config-setting build-dir={dir}/.mesonpy
+
+ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
+export PYBUILD_BEFORE_BUILD = meson env2mfile --debarch $(DEB_HOST_ARCH) --cross -o {dir}/debian/meson-cross.txt \
+	&& python3 {dir}/debian/helpers/add_longdouble_format_property.py {dir}/debian/meson-cross.txt $(DEB_HOST_ARCH)
+export PYBUILD_AFTER_BUILD = rm {dir}/debian/meson-cross.txt
+PYBUILD_BUILD_ARGS += --config-setting setup-args=--cross-file={dir}/debian/meson-cross.txt
+endif
+
+export PYBUILD_DESTDIR = debian/python3-numpy
+
+# Helper variables
+PY3VERS = $(shell py3versions -vr)
+PY3DEF = $(shell py3versions -vd)
+STAGING_DIR = $(CURDIR)/debian/python3-numpy
+space = $(eval) $(eval)
+concat_with = $(subst $(space),$1,$2)
 
 %:
-	dh $@ --with python3 --buildsystem=pybuild
+	dh $@ --buildsystem=pybuild
 
-override_dh_auto_build-arch:
-	dh_auto_build
-	set -e; for v in $(PY3VERS); do \
-		python$$v setup.py build; \
-	done
+auto-build-for-default-python:
+	PYBUILD_DISABLE="$(filter-out $(PY3DEF),$(PY3VERS))" dh_auto_build
+	touch $@
 
-override_dh_auto_clean:
-	rm -rf build/
-	rm -rf `find -name build -type d`
-	rm -rf `find . -name "*.pyc" -type f`
-	rm -rf doc/fontList.cache numpy/f2py/docs/usersguide/index.html
-	rm -rf doc/source/reference/generated
-	# cython generated
-	rm -f numpy/random/mtrand/mtrand.c
+auto-build-for-other-python:
+	PYBUILD_DISABLE="$(PY3DEF)" dh_auto_build
+	touch $@
 
-override_dh_installman:
-	dh_installman -ppython3-numpy debian/dh_numpy3.1
+override_dh_auto_build-arch: auto-build-for-default-python auto-build-for-other-python
+	true
 
-override_dh_python3:
-	dh_python3
+override_dh_auto_build-indep: auto-build-for-default-python
+	$(MAKE) -C doc html \
+		GITVER=Unknown \
+		MPLCONFIGDIR=. \
+		PYTHON=python3 \
+		PYTHONPATH=$(shell pybuild --print {build_dir} --interpreter python3)
 
-	ENTRYPOINT=non-existant
+# Nothing to install for -indep
+override_dh_auto_install-indep:
+
+# No tests to run for the -doc package
+override_dh_auto_test-indep:
+
+override_dh_auto_test-arch:
+	dh_auto_test --arch -O--buildsystem=pybuild
+
+execute_after_dh_python3-arch:
 	# tweak the entry_points console_scripts list to include all supported versions
-	if [ -f $(CURDIR)/debian/python3-numpy/usr/lib/python3/dist-packages/numpy-*.egg-info/entry_points.txt ] ; then \
-		ENTRYPOINT=$(shell ls $(CURDIR)/debian/python3-numpy/usr/lib/python3/dist-packages/numpy-*.egg-info/entry_points.txt) ; \
+	if [ -f $(STAGING_DIR)/usr/lib/python3/dist-packages/numpy-*.dist-info/entry_points.txt ] ; then \
+		ENTRYPOINT=$(shell ls $(STAGING_DIR)/usr/lib/python3/dist-packages/numpy-*.dist-info/entry_points.txt) ; \
+		python3 debian/helpers/edit_console_scripts.py $$ENTRYPOINT "f2py3" "numpy.f2py.f2py2e:main" ; \
 		for v in $(PY3VERS); do \
-			python3 debian/edit_console_scripts.py $$ENTRYPOINT "f2py$$v" "numpy.f2py.f2py2e:main" ; \
+			python3 debian/helpers/edit_console_scripts.py $$ENTRYPOINT "f2py$$v" "numpy.f2py.f2py2e:main" ; \
 		done \
 	fi
+	rm -rf $(STAGING_DIR)/usr/lib/python3.*
 
-override_dh_install:
-	# add shebang information to f2py script
+execute_before_dh_install-arch:
+	# add versioned f2pyX.Y scripts
+	cp -a $(STAGING_DIR)/usr/bin/f2py $(STAGING_DIR)/usr/bin/f2py3
+	# Create wrappers to run python$$i without dh-python generating a
+	# hard dependency on all of those interpreters (#945824)
 	set -e; for v in $(PY3VERS); do \
-		sed -i "1s,#!.*python[^ ]*\(.*\),#!/usr/bin/python$$v," debian/tmp/usr/bin/f2py$$v; \
+		sed -e "s,@VERSION@,$$v,g" debian/f2py.in > $(STAGING_DIR)/usr/bin/f2py$$v; \
+		chmod 0755 $(STAGING_DIR)/usr/bin/f2py$$v; \
 	done
-	cp -a debian/tmp/usr/bin/f2py$(PY3DEF) debian/tmp/usr/bin/f2py3
-	sed -i "1s,#!.*python[^ ]*\(.*\),#!/usr/bin/python3," debian/tmp/usr/bin/f2py3
+	# add numpy.pc backported from NumPy 2.0 (#1067398)
+	mkdir -p $(STAGING_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig
+	sed -e  "s,@VERSION@,$(DEB_VERSION_UPSTREAM),g" debian/numpy.pc.in > $(STAGING_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/numpy.pc
 
-	# install numpy.i into the include directory
-	cp -a tools/swig/numpy.i debian/tmp/usr/lib/python3/dist-packages/numpy/core/include/numpy
+execute_before_dh_gencontrol:
+	python3 debian/helpers/numpy_substvars.py >> debian/python3-numpy.substvars
 
-	dh_install
-
-	# create symlinks for .h files
-	set -e; for i in $(PY3VERS); do \
-	ABITAG=`python$$i -c "import sys; print(sys.abiflags)"`; \
-	[ -d $(CURDIR)/debian/python3-numpy/usr/include/python$$i$$ABITAG ] || \
-		mkdir -p $(CURDIR)/debian/python3-numpy/usr/include/python$$i$$ABITAG; \
-		dh_link -ppython3-numpy usr/lib/python3/dist-packages/numpy/core/include/numpy usr/include/python$$i$$ABITAG/numpy; \
-	done
-
-override_dh_gencontrol:
-	python3 debian/versions3.helper >> debian/python3-numpy.substvars
-	dh_gencontrol
-
-override_dh_compress:
-	dh_compress -X.js -Xobjects.inv -X.txt -X.woff -X.woff2 -X.ico
-
-override_dh_installdocs-indep:
-	dh_installdocs -i
-
-override_dh_auto_test:
-	echo "pass"
-
-override_dh_auto_install:
-	dh_auto_install
-
-	# Install for Python 3
-	set -e; for v in $(PY3VERS); do \
-		python$$v setup.py install --root=$(CURDIR)/debian/tmp --install-layout=deb; \
-	done
-
-	# yes, we need to run tests after install
-	# The reason is that numpy tries hard to not let you run it from the
-	# source directory, so we need to mess with the import order so to
-	# select the code in the installation path
-ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
-	echo "TEST STARTED" `date`
-	set -e; for v in $(PY3VERS) ; do \
-		cd $(CURDIR)/debian/tmp/usr/lib/python3/dist-packages/ ; \
-		echo "-- running tests for "$$v" plain --" ; \
-		python$$v -c 'import numpy; numpy.test(verbose=5, extra_argv=["--ignore=numpy/core/tests/test_mem_policy.py", "-k not test_limited_api and not test_gen_pyf_no_overwrite and not test_max_rows_empty_lines"])' ; \
-		cd $(CURDIR) ; \
-	done
-	echo "TEST ENDED" `date`
-endif
+download_remote_intersphinx_inventories:
+	curl https://matplotlib.org/stable/objects.inv -o debian/intersphinx/matplotlib_objects.inv
+	curl https://numpydoc.readthedocs.io/en/latest/objects.inv -o debian/intersphinx/numpydoc_objects.inv
+	curl https://numpy.org/neps/objects.inv -o debian/intersphinx/neps_objects.inv
+	curl https://numpy.org/numpy-tutorials/objects.inv -o debian/intersphinx/numpy-tutorials_objects.inv
+	curl https://dmlc.github.io/dlpack/latest/objects.inv -o debian/intersphinx/dlpack_objects.inv
+	curl https://scipy-lectures.org/objects.inv -o debian/intersphinx/scipy-lectures_objects.inv

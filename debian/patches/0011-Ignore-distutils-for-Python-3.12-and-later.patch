@@ -1,0 +1,23 @@
+From: =?utf-8?q?Timo_R=C3=B6hling?= <roehling@debian.org>
+Date: Fri, 17 May 2024 18:44:23 +0200
+Subject: Ignore distutils for Python 3.12 and later
+
+---
+ doc/source/conf.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/doc/source/conf.py b/doc/source/conf.py
+index eb37c45..dd1a862 100644
+--- a/doc/source/conf.py
++++ b/doc/source/conf.py
+@@ -141,6 +141,10 @@ default_role = "autolink"
+ # for source files.
+ exclude_dirs = []
+ 
++exclude_patterns = []
++if sys.version_info[:2] >= (3, 12):
++    exclude_patterns += ["reference/distutils*", "f2py/buildtools/distutils*"]
++
+ # If true, '()' will be appended to :func: etc. cross-reference text.
+ add_function_parentheses = False
+ 
