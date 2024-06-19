@@ -1,1 +1,7 @@
-debian/python.org_objects.inv
+# regenerate with "debian/rules download_remote_intersphinx_inventories"
+debian/intersphinx/dlpack_objects.inv
+debian/intersphinx/matplotlib_objects.inv
+debian/intersphinx/neps_objects.inv
+debian/intersphinx/numpydoc_objects.inv
+debian/intersphinx/numpy-tutorials_objects.inv
+debian/intersphinx/scipy-lectures_objects.inv

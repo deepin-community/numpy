@@ -1,0 +1,22 @@
+From: =?utf-8?q?Timo_R=C3=B6hling?= <roehling@debian.org>
+Date: Thu, 16 May 2024 14:37:52 +0200
+Subject: Prevent random object file names in debuginfo
+
+---
+ numpy/core/meson.build | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/numpy/core/meson.build b/numpy/core/meson.build
+index 0823524..85e2412 100644
+--- a/numpy/core/meson.build
++++ b/numpy/core/meson.build
+@@ -1124,8 +1124,7 @@ py.extension_module('_multiarray_umath',
+     src_numpy_api[1],  # __multiarray_api.h
+     src_umath_doc_h,
+     npy_math_internal_h,
+-  ],
+-  objects: svml_objects,
++  ] + svml_objects,
+   c_args: c_args_common,
+   cpp_args: cpp_args_common,
+   include_directories: [

@@ -1,3 +1,172 @@
+numpy (1:1.26.4+ds-10) unstable; urgency=medium
+
+  * Defang upstream gitignore
+  * Stop building distutils documentation with Python 3.12 (Closes: #1071255)
+
+ -- Timo Röhling <roehling@debian.org>  Fri, 17 May 2024 18:38:57 +0200
+
+numpy (1:1.26.4+ds-9) unstable; urgency=medium
+
+  * Upload to unstable (Closes: #1070445)
+  * More test filtering
+  * Fix reproducibility issue with lapack dependency
+  * Reorganize patches (no functional changes)
+  * Prevent random object file names in debuginfo
+  * Skip FPClass tests on mips64el
+
+ -- Timo Röhling <roehling@debian.org>  Thu, 16 May 2024 14:38:07 +0200
+
+numpy (1:1.26.4+ds-9~exp1) experimental; urgency=medium
+
+  [ Michael R. Crusoe ]
+  * Bring back the -doc package.
+
+  [ Timo Röhling ]
+  * Fix the SWIG documentation patch to reflect recent changes
+  * Improve logic to avoid unneeded compilations
+
+ -- Timo Röhling <roehling@debian.org>  Wed, 15 May 2024 21:24:07 +0200
+
+numpy (1:1.26.4+ds-8) unstable; urgency=medium
+
+  * Another round of flaky tests
+
+ -- Timo Röhling <roehling@debian.org>  Thu, 25 Apr 2024 21:52:44 +0200
+
+numpy (1:1.26.4+ds-7) unstable; urgency=medium
+
+  * Make mips64el build more robust
+  * Remove outdated READMEs
+  * Move packaging helper scripts to dedicated subdir
+  * Use deterministic MesonPy build directory
+  * Bump Standards-Version to 4.7.0
+  * Skip TestErrState::test_invalid on armel (Closes: #1069551)
+
+ -- Timo Röhling <roehling@debian.org>  Thu, 25 Apr 2024 16:10:26 +0200
+
+numpy (1:1.26.4+ds-6) unstable; urgency=medium
+
+  * Make header include dir findable by pkgconf (Closes: #1067398)
+  * Fix architecture-specifix test exclusions in autopkgtest
+  * Fix entry point edits
+  * Do not install duplicate files in /usr/lib/python3.X (Closes: #1063465)
+
+ -- Timo Röhling <roehling@debian.org>  Thu, 21 Mar 2024 23:14:35 +0100
+
+numpy (1:1.26.4+ds-5) unstable; urgency=medium
+
+  * Fix more FTBFS due to architecture idiosynchrasies
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 19 Mar 2024 21:51:43 +0100
+
+numpy (1:1.26.4+ds-4) unstable; urgency=medium
+
+  * Also skip feature test in armhf/armel
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 19 Mar 2024 12:51:15 +0100
+
+numpy (1:1.26.4+ds-3) unstable; urgency=medium
+
+  * Skip tests with floating point errors on armhf/armel
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 19 Mar 2024 11:38:11 +0100
+
+numpy (1:1.26.4+ds-2) unstable; urgency=medium
+
+  * Upload to unstable.
+  * Avoid hard dependency on individual Python versions.
+    Thanks to Simon McVittie (Closes: #945824)
+  * Stop symlinking NumPy headers in Python default include path
+    (Closes: #998084)
+  * Make package cross-buildable
+  * Skip f2py tests for architecture-specific failures
+  * Adopt upstream spelling of NumPy
+  * Tests no longer consume excessive memory with Python 3.12
+    (Closes: #1058456)
+
+ -- Timo Röhling <roehling@debian.org>  Mon, 18 Mar 2024 11:58:47 +0100
+
+numpy (1:1.26.4+ds-1) experimental; urgency=medium
+
+  * Update debian/watch
+  * New upstream version 1.26.4+ds
+  * Update debian/copyright
+  * Update patches
+    - Drop 0004-Restore-missing-asstr-import.patch (merged upstream)
+    - Drop 0005-Fix-pytest-8-deprecation-error.patch (merged upstream)
+  * MesonPy is devendored now
+
+ -- Timo Röhling <roehling@debian.org>  Sat, 16 Mar 2024 14:49:51 +0100
+
+numpy (1:1.26.3-3) experimental; urgency=medium
+
+  * Add ckk and myself as uploaders (Closes: #1065329)
+  * Migrate to meson build system
+  * Update debian/copyright
+  * Update patches
+    - Drop debian_skip_tests.patch (no longer needed)
+    - Drop setup-py-accept-config.patch (no longer needed)
+  * Migrate to pybuild autopkgtest
+
+ -- Timo Röhling <roehling@debian.org>  Sat, 16 Mar 2024 12:38:38 +0100
+
+numpy (1:1.26.3-2) experimental; urgency=medium
+
+  * orphan
+
+ -- Sandro Tosi <morph@debian.org>  Sat, 02 Mar 2024 15:45:34 -0500
+
+numpy (1:1.26.3-1) experimental; urgency=medium
+
+  [ Stefano Rivera ]
+  * New upstream release (Closes: #1052320)
+    - Adds Python 3.12 support.
+    - Adds cython 3 support. (Closes: #1056825)
+  * Refresh patches.
+  * Drop patches, superseded upstream: python3-soabi.patch, python3.11.patch.
+  * Build-Depend on tzdata-legacy. The testsuite uses US/Eastern.
+  * Manually generate the f2pyX.Y scripts that upstream is no longer building.
+  * Clean version.py, generated on every build.
+  * Build-Depend on meson, and include it in many autopkgtests. f2py now uses
+    it on Python 3.12.
+  * Patch: Restore dropped import in f2py test suite.
+  * debian/versions
+    - bump API version to 17, min version 1.25.0
+
+  [ Sandro Tosi ]
+  * New upstream release
+  * debian/source/options
+    - ignore bat scripts diffs
+  * debian/copyright
+    - convert to DEP-5 format
+    - exclude .gitattributes from upstream tarball, messing up with .bat files
+  * debian/control
+    - drop dvisvgm from b-d, no longer needed; Closes: #1055435
+  * drop patches used to fix doc build, since we dont ship doc anymore
+  * debian/source/include-binaries
+    - drop, no longer needed
+
+ -- Sandro Tosi <morph@debian.org>  Mon, 22 Jan 2024 01:48:13 -0500
+
+numpy (1:1.24.2-3) unstable; urgency=medium
+
+  * orphan
+
+ -- Sandro Tosi <morph@debian.org>  Sat, 02 Mar 2024 15:43:52 -0500
+
+numpy (1:1.24.2-2) unstable; urgency=medium
+
+  * Team upload.
+  * Drop SETUPTOOLS_USE_DISTUTILS=stdlib workaround, no longer needed and not
+    applicable to Python 3.12.
+  * Clean correctly.
+  * Depend on python3-setuptools in autopkgtests that require distutils, for
+    Python 3.12 compatibility.
+  * Use --install-layout deb in capi autopkgtest, to use a consistent layout
+    with Python 3.11 and 12.
+
+ -- Stefano Rivera <stefanor@debian.org>  Mon, 04 Dec 2023 21:10:36 -0400
+
 numpy (1:1.24.2-1) unstable; urgency=medium
 
   * New upstream release

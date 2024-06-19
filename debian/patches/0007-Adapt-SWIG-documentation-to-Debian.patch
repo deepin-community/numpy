@@ -1,0 +1,46 @@
+From: Sandro Tosi <morph@debian.org>
+Date: Sun, 11 Oct 2015 10:12:18 -0700
+Subject: Adapt SWIG documentation to Debian
+
+Location of `swig` directory in Debian is specific to our distro, so the
+documentation needs adaptation.
+
+Origin: vendor
+Forwarded: not-needed
+Last-Update: 2021-12-19
+---
+ doc/source/reference/swig.interface-file.rst | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/doc/source/reference/swig.interface-file.rst b/doc/source/reference/swig.interface-file.rst
+index f2bb0f0..d5146cc 100644
+--- a/doc/source/reference/swig.interface-file.rst
++++ b/doc/source/reference/swig.interface-file.rst
+@@ -166,10 +166,23 @@ assignments in lines 19 and 20.
+ Using numpy.i
+ -------------
+ 
+-The ``numpy.i`` file is currently located in the ``tools/swig``
+-sub-directory under the ``numpy`` installation directory.  Typically,
+-you will want to copy it to the directory where you are developing
+-your wrappers.
++The ``numpy.i`` file is shipped in the NumPy include directory, which can be
++found as shown in the following ``Makefile`` snippet::
++
++    NUMPY_INCLUDEDIR := $(shell pkgconf --variable=includedir numpy)
++
++    %.py %_wrap.cc: %.i
++            swig                    \
++              -I$(NUMPY_INCLUDEDIR) \
++              -py3                  \
++              -python               \
++              -c++                  \
++              -outdir .             \
++              -o $*_wrap.cc         \
++              $<
++
++So if we have a swig module ``module.i``, we can build the swig wrappers with
++``make module.py module_wrap.cc``.
+ 
+ A simple module that only uses a single `SWIG`_ interface file should
+ include the following::

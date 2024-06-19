@@ -1,0 +1,2 @@
+doc/build/html /usr/share/doc/python-numpy/
+numpy/doc/*.py /usr/share/doc/python-numpy/

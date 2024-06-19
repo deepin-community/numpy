@@ -1,0 +1,3 @@
+.mesonpy/
+auto-build-for-default-python
+auto-build-for-other-python
