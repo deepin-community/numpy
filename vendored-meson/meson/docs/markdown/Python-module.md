@@ -12,6 +12,15 @@ authors:
 This module provides support for finding and building extensions against
 python installations, be they python 2 or 3.
 
+If you want to build and package Python extension modules using tools
+compatible with [PEP-517](https://peps.python.org/pep-0517/), check out
+[meson-python](https://mesonbuild.com/meson-python/index.html).
+
+If you are building Python extension modules against a Python interpreter
+located in a venv or Conda environment, you probably want to set
+`python.install_venv=auto`;
+see [Python module options](Builtin-options.md#python-module) for details.
+
 *Added 0.46.0*
 
 ## Functions
@@ -101,6 +110,11 @@ the addition of the following:
   `/usr/lib/site-packages`. When subdir is passed to this method,
   it will be appended to that location. This keyword argument is
   mutually exclusive with `install_dir`
+- `limited_api`: *since 1.3.0* A string containing the Python version
+  of the [Py_LIMITED_API](https://docs.python.org/3/c-api/stable.html) that
+  the extension targets. For example, '3.7' to target Python 3.7's version of
+  the limited API. This behavior can be disabled by setting the value of
+  `python.allow_limited_api`. See [Python module options](Builtin-options.md#python-module).
 
 Additionally, the following diverge from [[shared_module]]'s default behavior:
 

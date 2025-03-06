@@ -1,0 +1,2 @@
+dir_to_symlink /usr/lib/python3/dist-packages/numpy/f2py/src ../../../../${DEB_HOST_MULTIARCH}/python3-numpy/numpy/f2py/src 1:2.2.3+ds-2~ python3-numpy
+dir_to_symlink /usr/lib/python3/dist-packages/numpy/random/lib ../../../../${DEB_HOST_MULTIARCH}/python3-numpy/numpy/random/lib 1:2.2.3+ds-2~ python3-numpy

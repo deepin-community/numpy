@@ -3,54 +3,70 @@
 include /usr/share/dpkg/architecture.mk
 include /usr/share/dpkg/pkg-info.mk
 
-# The following tests are problematic and skipped:
-# - Meson's python module always returns the default interpreter, which makes
-#   Cython related tests fail on non-default python versions
-# - numpy.distutils is still shipped because of Python 3.11, which makes the
-#   test_all_modules_are_expected test fail with Python 3.12+ (where it is
-#   supposed to be dropped).
-# - The test for impossible features depends on propagation of /proc/cpuinfo
-#   flags and is flaky on buildd (and Ubuntu launchpad).
+# Large file support actually works, but some buildds and Salsa do not like us
+# creating 5 GB files.
 SKIP_TESTS = \
-	cython \
-	test_all_modules_are_expected \
-	test_impossible_feature_enable
-
+	test_big_arrays \
+	test_large_file_support
 # Some tests have architecture-specific issues. Generally, these are related to
 # unexpected behavior of floating point operations (unexpected for the unit
 # tests, that is).
-ifeq ($(filter amd64 arm64 ppc64el,$(DEB_HOST_ARCH)),)
-SKIP_TESTS += f2py
-endif
-ifneq ($(filter riscv64 armhf armel,$(DEB_HOST_ARCH)),)
-SKIP_TESTS += FPClass test_float
-endif
-ifneq ($(filter armhf armel,$(DEB_HOST_ARCH)),)
-SKIP_TESTS += error exception warning fpe overflow \
+ifneq ($(filter armel armhf,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += \
+	FPClass \
 	SpecialFloats \
+	TestBoolCmp \
+	error \
+	except \
+	overflow \
+	test_denormal_numbers \
 	test_divide_err \
 	test_empty \
-	test_errobj \
+	test_exotic \
 	test_features \
-	test_invalid \
+	test_half_fpe \
+	test_linear_interpolation_formula_symmetric \
 	test_log2_special \
-	test_loss_of_precision \
 	test_nonarray_assignment \
 	test_special_values \
 	test_where \
 	test_zero_power_nonzero
 endif
-ifneq ($(filter mips64el,$(DEB_HOST_ARCH)),)
-SKIP_TESTS += error Special test_reduce Nan FPClass
+# The huge vector exceeds the available address space on 32 bit architectures
+ifeq ($(DEB_HOST_ARCH_BITS),32)
+SKIP_TESTS += \
+	test_huge_vectordot
 endif
-ifneq ($(filter s390x,$(DEB_HOST_ARCH)),)
-SKIP_TESTS += test_linear_interpolation_formula_symmetric
+ifneq ($(filter mips64el,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += \
+	NanFunctions \
+	SpecialComplex \
+	SpecialFloats \
+	error \
+	test_reduce
+endif
+ifneq ($(filter alpha mips64el powerpc ppc64 sparc64,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += \
+	sq_cases
+endif
+ifneq ($(filter hppa powerpc,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += \
+	ctypeslib \
+	test_dtype
+endif
+ifneq ($(filter powerpc,$(DEB_HOST_ARCH)),)
+SKIP_TESTS += \
+	test_linalg
+endif
+ifeq ($(PYBUILD_AUTOPKGTEST),1)
+SKIP_TESTS += test_dict_mode
 endif
 
-export PYBUILD_TEST_CUSTOM = 1
-export PYBUILD_TEST_ARGS = {interpreter} {dir}/runtests.py --no-build --verbose --pythonpath {build_dir} \
-	-- $(if $(SKIP_TESTS),-k 'not ($(call concat_with,$(space)or$(space),$(SKIP_TESTS)))')
 export PYBUILD_BUILD_ARGS = --config-setting build-dir={dir}/.mesonpy
+export PYBUILD_TEST_ARGS = $(if $(SKIP_TESTS),-k 'not ($(call concat_with,$(space)or$(space),$(SKIP_TESTS)))')
+ifeq ($(PYBUILD_AUTOPKGTEST),1)
+PYBUILD_TEST_ARGS += /usr/lib/python3/dist-packages/numpy
+endif
 
 ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 export PYBUILD_BEFORE_BUILD = meson env2mfile --debarch $(DEB_HOST_ARCH) --cross -o {dir}/debian/meson-cross.txt \
@@ -59,12 +75,11 @@ export PYBUILD_AFTER_BUILD = rm {dir}/debian/meson-cross.txt
 PYBUILD_BUILD_ARGS += --config-setting setup-args=--cross-file={dir}/debian/meson-cross.txt
 endif
 
-export PYBUILD_DESTDIR = debian/python3-numpy
-
 # Helper variables
 PY3VERS = $(shell py3versions -vr)
 PY3DEF = $(shell py3versions -vd)
-STAGING_DIR = $(CURDIR)/debian/python3-numpy
+STAGING_DIR = $(CURDIR)/debian/tmp
+PYTHON3_NUMPY_DIR = $(CURDIR)/debian/python3-numpy
 space = $(eval) $(eval)
 concat_with = $(subst $(space),$1,$2)
 
@@ -86,6 +101,7 @@ override_dh_auto_build-indep: auto-build-for-default-python
 	$(MAKE) -C doc html \
 		GITVER=Unknown \
 		MPLCONFIGDIR=. \
+		SPHINXOPTS= \
 		PYTHON=python3 \
 		PYTHONPATH=$(shell pybuild --print {build_dir} --interpreter python3)
 
@@ -100,15 +116,17 @@ override_dh_auto_test-arch:
 
 execute_after_dh_python3-arch:
 	# tweak the entry_points console_scripts list to include all supported versions
-	if [ -f $(STAGING_DIR)/usr/lib/python3/dist-packages/numpy-*.dist-info/entry_points.txt ] ; then \
-		ENTRYPOINT=$(shell ls $(STAGING_DIR)/usr/lib/python3/dist-packages/numpy-*.dist-info/entry_points.txt) ; \
+	if [ -f $(PYTHON3_NUMPY_DIR)/usr/lib/python3/dist-packages/numpy-*.dist-info/entry_points.txt ] ; then \
+		ENTRYPOINT=$(shell ls $(PYTHON3_NUMPY_DIR)/usr/lib/python3/dist-packages/numpy-*.dist-info/entry_points.txt) ; \
 		python3 debian/helpers/edit_console_scripts.py $$ENTRYPOINT "f2py3" "numpy.f2py.f2py2e:main" ; \
 		for v in $(PY3VERS); do \
 			python3 debian/helpers/edit_console_scripts.py $$ENTRYPOINT "f2py$$v" "numpy.f2py.f2py2e:main" ; \
 		done \
 	fi
-	rm -rf $(STAGING_DIR)/usr/lib/python3.*
+	# Remove test artifact
+	rm -f $(PYTHON3_NUMPY_DIR)/usr/lib/python3/dist-packages/xm.np.npy
 
+MULTIARCH_TREE_DIR = $(STAGING_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/python3-numpy/numpy
 execute_before_dh_install-arch:
 	# add versioned f2pyX.Y scripts
 	cp -a $(STAGING_DIR)/usr/bin/f2py $(STAGING_DIR)/usr/bin/f2py3
@@ -118,9 +136,28 @@ execute_before_dh_install-arch:
 		sed -e "s,@VERSION@,$$v,g" debian/f2py.in > $(STAGING_DIR)/usr/bin/f2py$$v; \
 		chmod 0755 $(STAGING_DIR)/usr/bin/f2py$$v; \
 	done
-	# add numpy.pc backported from NumPy 2.0 (#1067398)
+	# Remove various LICENSE files from inconvienient locations
+	find $(STAGING_DIR)/usr/lib -name "LICENSE*" -delete
+	# Move NumPy headers to Multi-Arch friendly location
+	mkdir -p $(MULTIARCH_TREE_DIR)/_core $(MULTIARCH_TREE_DIR)/random $(MULTIARCH_TREE_DIR)/f2py
+	mv $(STAGING_DIR)/usr/lib/python$(PY3DEF)/dist-packages/numpy/_core/include $(MULTIARCH_TREE_DIR)/_core
+	mv $(STAGING_DIR)/usr/lib/python$(PY3DEF)/dist-packages/numpy/_core/lib $(MULTIARCH_TREE_DIR)/_core
+	mv $(STAGING_DIR)/usr/lib/python$(PY3DEF)/dist-packages/numpy/random/lib $(MULTIARCH_TREE_DIR)/random
+	mv $(STAGING_DIR)/usr/lib/python$(PY3DEF)/dist-packages/numpy/f2py/src $(MULTIARCH_TREE_DIR)/f2py
+	rm -rf $(STAGING_DIR)/usr/lib/python3.*/dist-packages/numpy/_core/include
+	rm -rf $(STAGING_DIR)/usr/lib/python3.*/dist-packages/numpy/_core/lib
+	rm -rf $(STAGING_DIR)/usr/lib/python3.*/dist-packages/numpy/random/lib
+	rm -rf $(STAGING_DIR)/usr/lib/python3.*/dist-packages/numpy/f2py/src
+	# Remove build path from __config__.py
+	sed -i -e "s;$(CURDIR);\$$BUILDDIR;g" $(STAGING_DIR)/usr/lib/python3*/dist-packages/numpy/__config__.py
+	# Remove Python version information from __config__.py
+	sed -i -e '/"Python Information": {/,/},/d' $(STAGING_DIR)/usr/lib/python3*/dist-packages/numpy/__config__.py
+	# Install numpy.pc for global discovery (without numpy-config shenanigans)
 	mkdir -p $(STAGING_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig
-	sed -e  "s,@VERSION@,$(DEB_VERSION_UPSTREAM),g" debian/numpy.pc.in > $(STAGING_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/numpy.pc
+	sed \
+		-e "s,@VERSION@,$(shell echo $(DEB_VERSION_UPSTREAM) | cut -d+ -f1),g" \
+		-e "s,@MULTIARCH@,$(DEB_HOST_MULTIARCH),g" \
+		debian/numpy.pc.in > $(STAGING_DIR)/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/numpy.pc
 
 execute_before_dh_gencontrol:
 	python3 debian/helpers/numpy_substvars.py >> debian/python3-numpy.substvars

@@ -1,0 +1,4 @@
+usr/lib/${DEB_HOST_MULTIARCH}/python3-numpy/numpy/_core/include usr/lib/python3/dist-packages/numpy/_core/include
+usr/lib/${DEB_HOST_MULTIARCH}/python3-numpy/numpy/_core/lib usr/lib/python3/dist-packages/numpy/_core/lib
+usr/lib/${DEB_HOST_MULTIARCH}/python3-numpy/numpy/f2py/src usr/lib/python3/dist-packages/numpy/f2py/src
+usr/lib/${DEB_HOST_MULTIARCH}/python3-numpy/numpy/random/lib usr/lib/python3/dist-packages/numpy/random/lib

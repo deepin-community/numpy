@@ -1,4 +1,4 @@
-prefix=/usr/lib/python3/dist-packages/numpy/core
+prefix=/usr/lib/@MULTIARCH@/python3-numpy/numpy/_core
 includedir=${prefix}/include
 
 Name: numpy

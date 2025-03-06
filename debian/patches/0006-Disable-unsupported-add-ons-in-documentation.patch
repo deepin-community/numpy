@@ -1,0 +1,33 @@
+From: Sandro Tosi <morph@debian.org>
+Date: Sun, 3 Dec 2023 11:24:19 -0400
+Subject: Disable unsupported add-ons in documentation
+
+---
+ doc/source/conf.py              | 3 ---
+ doc/source/release/template.rst | 2 +-
+ 2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/doc/source/conf.py b/doc/source/conf.py
+index 59cd5a2..2577faf 100644
+--- a/doc/source/conf.py
++++ b/doc/source/conf.py
+@@ -252,9 +252,6 @@ html_theme_options = {
+     "header_links_before_dropdown": 6,
+     # Add light/dark mode and documentation version switcher:
+     "navbar_end": [
+-        "search-button",
+-        "theme-switcher",
+-        "version-switcher",
+         "navbar-icon-links"
+     ],
+     "navbar_persistent": [],
+diff --git a/doc/source/release/template.rst b/doc/source/release/template.rst
+index a3364da..76ac0c9 100644
+--- a/doc/source/release/template.rst
++++ b/doc/source/release/template.rst
+@@ -18,4 +18,4 @@ Highlights
+ 
+ .. **Content from release note snippets in doc/release/upcoming_changes:**
+ 
+-.. include:: notes-towncrier.rst
++ .. include:: notes-towncrier.rst

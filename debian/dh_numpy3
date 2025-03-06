@@ -23,9 +23,11 @@
 
 use strict;
 use Debian::Debhelper::Dh_Lib;
+use File::Find;
 
 init(options => {
         "strict" => \$dh{STRICT},
+	"force" => \$dh{FORCE},
 });
 
 my %data;
@@ -39,20 +41,69 @@ while (<FILE>) {
 }
 close FILE;
 
-unless ($data{'abi'} and $data{'api'} and $data{'api-min-version'}) {
+unless (exists $data{'abi'} and exists $data{'api'} and exists $data{'api-min-version'}) {
 	error("cannot parse version data file");
 }
 
+sub has_numpy_capi_reference {
+	# NumPy has no discernable ELF dependencies but tries to import a particular
+	# module to initialize an array of API entry points. We just look for that
+	# module name being referenced by the binary module.
+	my ($file) = @_;
+	open(my $fd, '<:raw', $file) or error("open $file: $!");
+	local $/ = undef;
+	my $content = <$fd>;
+	close($fd);
+	return $content =~ /numpy\._?core\._multiarray_umath\x00/ and $content =~ /_(?:ARRAY|UFUNC)_API\x00/;
+}
+
 foreach my $package (@{$dh{DOPACKAGES}}) {
-	my $numpy_dep;
-	if (package_arch($package) eq 'all') {
-		$numpy_dep = 'python3-numpy';
-	} elsif ($dh{STRICT}) {
-		$numpy_dep = "python3-numpy-api$data{'api'}";
-	} else {
-		$numpy_dep = "python3-numpy (>= $data{'api-min-version'}), python3-numpy-abi$data{'abi'}";
+	if (package_binary_arch($package) ne "all") {
+		my $tmp = tmpdir($package);
+		my $uses_numpy_capi = 0;
+		my $check_python_modules = sub {
+			my $fn = $_;
+			return if $uses_numpy_capi;
+			return if ! $fn =~ /\.so(?:\.|$)?/;
+			return if -l $fn;  # Ignore symlinks
+			if (excludefile($fn)) {
+				$File::Find::prune = 1 if -d _;
+				return;
+			}
+			if (-d _) {
+				if ($fn =~ m!^\Q$tmp\E/usr/lib/debug!) {
+					$File::Find::prune = 1;
+				}
+				return;
+			}
+			return if ! -f _;
+			return if ! is_so_or_exec_elf_file($fn);
+			if (has_numpy_capi_reference($fn)) {
+				$uses_numpy_capi = 1;
+			}
+		};
+		find({wanted => $check_python_modules, no_chdir => 1}, $tmp);
+		if ($dh{FORCE} && !$uses_numpy_capi)
+		{
+			$uses_numpy_capi = 1;
+			warning("binary package $package does not depend on the NumPy C ABI, but --force was given");
+		}
+		if ($uses_numpy_capi)
+		{
+			my $numpy_dep = "python3-numpy2-abi$data{'abi'}";
+			# The first NumPy 2.x ABI release is binary compatible with the last NumPy 1.x ABI release 
+			$numpy_dep .= " | python3-numpy-abi9" if ($data{'abi'} eq '0');
+			if ($dh{STRICT}) {
+				# For strict dependencies, we require the same API version as well
+				$numpy_dep .= ", python3-numpy-api$data{'api'}";
+			}
+			addsubstvar($package, "python3:Depends", $numpy_dep);
+		}
+		else
+		{
+			warning("skipping binary package $package which does not depend on the NumPy C ABI");
+		}
 	}
-	addsubstvar($package, "python3:Depends", $numpy_dep);
 }
 
 exit 0

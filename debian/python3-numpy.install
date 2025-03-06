@@ -1,4 +1,2 @@
-debian/dh_numpy3 usr/bin
-debian/numpy3.pm usr/share/perl5/Debian/Debhelper/Sequence/
-debian/versions usr/share/numpy3/
-tools/swig/numpy.i usr/lib/python3/dist-packages/numpy/core/include/numpy
+usr/bin
+usr/lib/python3*

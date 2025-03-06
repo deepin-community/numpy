@@ -1,21 +1,21 @@
 Source: numpy
 Section: python
 Priority: optional
-Maintainer: Debian Python Team <team+python@tracker.debian.org>,
+Maintainer: Debian Python Team <team+python@tracker.debian.org>
 Uploaders:
  Christian Kastner <ckk@debian.org>,
  Timo Röhling <roehling@debian.org>,
 Build-Depends:
- cython3:native (>= 3.0),
  debhelper-compat (= 13),
- dh-python,
  dh-sequence-python3,
+ cython3:native (>= 3.0),
  gfortran [amd64 arm64 ppc64el] <!nocheck>,
  libblas-dev [!arm !m68k],
  liblapack-dev [!arm !m68k],
  libpython3-all-dev,
  mypy <!nocheck>,
  ninja-build,
+ pkgconf <!nocheck>,
  pybuild-plugin-pyproject,
  python3-all-dev:any,
  python3-charset-normalizer <!nocheck>,
@@ -24,11 +24,10 @@ Build-Depends:
  python3-pyproject-metadata:native,
  python3-pytest <!nocheck>,
  python3-pytest-xdist <!nocheck>,
- python3-scipy <!nocheck>,
  python3-setuptools <!nocheck>,
  python3-typing-extensions (>= 4.2.0) <!nocheck>,
  python3-tz <!nocheck>,
- tzdata-legacy <!nocheck>
+ tzdata-legacy <!nocheck>,
 Build-Depends-Indep:
  dh-sequence-sphinxdoc <!nodoc>,
  doxygen <!nodoc>,
@@ -40,19 +39,19 @@ Build-Depends-Indep:
  python3-breathe <!nodoc>,
  python3-doc <!nodoc>,
  python3-ipython <!nodoc>,
- python3-matplotlib <!nodoc>,
  python3-numpydoc <!nodoc>,
  python3-pickleshare <!nodoc>,
  python3-pydata-sphinx-theme <!nodoc>,
  python3-sphinx <!nodoc>,
+ python3-sphinx-copybutton <!nodoc>,
  python3-sphinx-design <!nodoc>,
 # python-matplotlib-doc <!nodoc>,  # missing
-Standards-Version: 4.7.0
+Standards-Version: 4.7.2
 Vcs-Git: https://salsa.debian.org/python-team/packages/numpy.git
 Vcs-Browser: https://salsa.debian.org/python-team/packages/numpy
 Homepage: http://www.numpy.org/
 Testsuite: autopkgtest-pkg-pybuild
-Description: Fast array facility to the Python language
+Description: Python library for numerical computations
  NumPy contains a powerful N-dimensional array object, sophisticated
  (broadcasting) functions, tools for integrating C/C++ and Fortran
  code, and useful linear algebra, Fourier transform, and random number
@@ -60,11 +59,14 @@ Description: Fast array facility to the Python language
 
 Package: python3-numpy
 Architecture: any
+Multi-Arch: allowed
+Pre-Depends:
+ dpkg (>= 1.17.14),
 Depends:
+ python3-numpy-dev (= ${binary:Version}),
  ${misc:Depends},
  ${python3:Depends},
  ${shlibs:Depends},
- python3-pkg-resources,
 Suggests:
  gcc,
  gfortran,
@@ -72,9 +74,7 @@ Suggests:
  python3-dev,
  python3-pytest,
 Provides:
- dh-sequence-numpy3,
  python3-f2py,
- python3-numpy-dev,
  ${numpy3:Provides},
  ${python3:Provides},
 Description: ${source:Synopsis} (Python 3)
@@ -92,7 +92,7 @@ Suggests:
  python-pytest-doc,
  python-scipy-doc,
  python-skimage-doc,
- python3-doc
+ python3-doc,
 Section: doc
 Architecture: all
 Multi-Arch: foreign
@@ -101,3 +101,22 @@ Description: ${source:Synopsis} (Documentation)
  ${source:Extended-Description}
  .
  This package contains documentation for NumPy and f2py.
+
+Package: python3-numpy-dev
+Architecture: any
+Multi-Arch: same
+Breaks:
+ python3-numpy (<< 1:2.1.3+ds-1~),
+Replaces:
+ python3-numpy (<< 1:2.1.3+ds-1~),
+Depends:
+ ${misc:Depends},
+Recommends:
+ python3-numpy,
+Provides:
+ dh-sequence-numpy3,
+Description: ${source:Synopsis} (Python 3 headers)
+ ${source:Extended-Description}
+ .
+ This package installs the development headers which are needed
+ to build C/C++ extensions with NumPy for Python 3.

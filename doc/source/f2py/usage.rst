@@ -31,13 +31,16 @@ To scan Fortran sources and generate a signature file, use
   either specify which routines should be wrapped (in the ``only: .. :`` part)
   or which routines F2PY should ignore (in the ``skip: .. :`` part).
 
+  F2PY has no concept of a "per-file" ``skip`` or ``only`` list, so if functions
+  are listed in ``only``, no other functions will be taken from any other files.
+
 If ``<filename.pyf>`` is specified as ``stdout``, then signatures are written to
 standard output instead of a file.
 
 Among other options (see below), the following can be used in this mode:
 
-  ``--overwrite-signature``
-    Overwrites an existing signature file.
+``--overwrite-signature``
+  Overwrites an existing signature file.
 
 2. Extension module construction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,38 +60,50 @@ current directory.
 Here ``<fortran files>`` may also contain signature files. Among other options
 (see below), the following options can be used in this mode:
 
-  ``--debug-capi``
-    Adds debugging hooks to the extension module. When using this extension
-    module, various diagnostic information about the wrapper is written to the
-    standard output, for example, the values of variables, the steps taken, etc.
+``--debug-capi``
+  Adds debugging hooks to the extension module. When using this extension
+  module, various diagnostic information about the wrapper is written to the
+  standard output, for example, the values of variables, the steps taken, etc.
 
-  ``-include'<includefile>'``
-    Add a CPP ``#include`` statement to the extension module source.
-    ``<includefile>`` should be given in one of the following forms
+``-include'<includefile>'``
+  Add a CPP ``#include`` statement to the extension module source.
+  ``<includefile>`` should be given in one of the following forms
 
-    .. code-block:: cpp
+  .. code-block:: cpp
 
-      "filename.ext"
-      <filename.ext>
+    "filename.ext"
+    <filename.ext>
 
-    The include statement is inserted just before the wrapper functions. This
-    feature enables using arbitrary C functions (defined in ``<includefile>``)
-    in F2PY generated wrappers.
+  The include statement is inserted just before the wrapper functions. This
+  feature enables using arbitrary C functions (defined in ``<includefile>``)
+  in F2PY generated wrappers.
 
-    .. note:: This option is deprecated. Use ``usercode`` statement to specify
-      C code snippets directly in signature files.
+  .. note:: This option is deprecated. Use ``usercode`` statement to specify
+    C code snippets directly in signature files.
 
-  ``--[no-]wrap-functions``
-    Create Fortran subroutine wrappers to Fortran functions.
-    ``--wrap-functions`` is default because it ensures maximum portability and
-    compiler independence.
+``--[no-]wrap-functions``
+  Create Fortran subroutine wrappers to Fortran functions.
+  ``--wrap-functions`` is default because it ensures maximum portability and
+  compiler independence.
 
-  ``--include-paths <path1>:<path2>:..``
-    Search include files from given directories.
+``--[no-]freethreading-compatible``
+  Create a module that declares it does or doesn't require the GIL. The default
+  is ``--no-freethreading-compatible`` for backwards compatibility. Inspect the
+  fortran code you are wrapping for thread safety issues before passing
+  ``--freethreading-compatible``, as ``f2py`` does not analyze fortran code for
+  thread safety issues.
 
-  ``--help-link [<list of resources names>]``
-    List system resources found by ``numpy_distutils/system_info.py``. For
-    example, try ``f2py --help-link lapack_opt``.
+``--include-paths "<path1>:<path2>..."``
+  Search include files from given directories.
+
+  .. note:: The paths are to be separated by the correct operating system
+            separator :py:data:`~os.pathsep`, that is ``:`` on Linux / MacOS
+            and ``;`` on Windows. In ``CMake`` this corresponds to using
+            ``$<SEMICOLON>``.
+
+``--help-link [<list of resources names>]``
+  List system resources found by ``numpy_distutils/system_info.py``. For
+  example, try ``f2py --help-link lapack_opt``.
 
 3. Building a module
 ~~~~~~~~~~~~~~~~~~~~
@@ -110,55 +125,6 @@ finally all object and library files are linked to the extension module
 If ``<fortran files>`` does not contain a signature file, then an extension
 module is constructed by scanning all Fortran source codes for routine
 signatures, before proceeding to build the extension module.
- 
-Among other options (see below) and options described for previous modes, the
-following options can be used in this mode:
- 
-  ``--help-fcompiler``
-    List the available Fortran compilers.
-  ``--help-compiler`` **[depreciated]**
-    List the available Fortran compilers.
-  ``--fcompiler=<Vendor>``
-    Specify a Fortran compiler type by vendor.
-  ``--f77exec=<path>``
-    Specify the path to a F77 compiler
-  ``--fcompiler-exec=<path>`` **[depreciated]**
-    Specify the path to a F77 compiler
-  ``--f90exec=<path>``
-    Specify the path to a F90 compiler
-  ``--f90compiler-exec=<path>`` **[depreciated]**
-    Specify the path to a F90 compiler
-  ``--f77flags=<string>``
-    Specify F77 compiler flags
-  ``--f90flags=<string>``
-    Specify F90 compiler flags
-  ``--opt=<string>``
-    Specify optimization flags
-  ``--arch=<string>``
-    Specify architecture specific optimization flags
-  ``--noopt``
-    Compile without optimization flags
-  ``--noarch``
-    Compile without arch-dependent optimization flags
-  ``--debug``
-    Compile with debugging information
-  ``-l<libname>``
-    Use the library ``<libname>`` when linking.
-  ``-D<macro>[=<defn=1>]``
-    Define macro ``<macro>`` as ``<defn>``.
-  ``-U<macro>``
-    Define macro ``<macro>``
-  ``-I<dir>``
-    Append directory ``<dir>`` to the list of directories searched for include
-    files.
-  ``-L<dir>``
-    Add directory ``<dir>`` to the list of directories to be searched for
-    ``-l``.
-  ``link-<resource>``
-    Link the extension module with <resource> as defined by
-    ``numpy_distutils/system_info.py``. E.g. to link with optimized LAPACK
-    libraries (vecLib on MacOSX, ATLAS elsewhere), use ``--link-lapack_opt``.
-    See also ``--help-link`` switch.
 
 .. warning::
    From Python 3.12 onwards, ``distutils`` has been removed. Use environment
@@ -253,7 +219,7 @@ The older ``distutils`` flags are:
   For more information, see the `Building C and C++ Extensions`__ Python
   documentation for details.
 
-   __ https://docs.python.org/3/extending/building.html
+  __ https://docs.python.org/3/extending/building.html
 
 
 When building an extension module, a combination of the following macros may be
@@ -277,8 +243,8 @@ larger than ``<int>``, a message about the copying is sent to ``stderr``.
 Other options
 ~~~~~~~~~~~~~
 
-  ``-m <modulename>``
-    Name of an extension module. Default is ``untitled``.
+``-m <modulename>``
+  Name of an extension module. Default is ``untitled``.
 
 .. warning::
    Don't use this option if a signature file (``*.pyf``) is used.
@@ -311,30 +277,20 @@ Other options
 Execute ``f2py`` without any options to get an up-to-date list of available
 options.
 
+.. _python-module-numpy.f2py:
+
 Python module ``numpy.f2py``
 ============================
 
-The f2py program is written in Python and can be run from inside your code
-to compile Fortran code at runtime, as follows:
-
-.. code-block:: python
-
-    from numpy import f2py
-    with open("add.f") as sourcefile:
-        sourcecode = sourcefile.read()
-    f2py.compile(sourcecode, modulename='add')
-    import add
-
-The source string can be any valid Fortran code. If you want to save
-the extension-module source code then a suitable file-name can be
-provided by the ``source_fn`` keyword to the compile function.
-
-When using ``numpy.f2py`` as a module, the following functions can be invoked.
-
 .. warning::
 
-  The current Python interface to the ``f2py`` module is not mature and may
-  change in the future.
+   .. versionchanged:: 2.0.0
+
+      There used to be a ``f2py.compile`` function, which was removed, users
+      may wrap ``python -m numpy.f2py`` via ``subprocess.run`` manually, and
+      set environment variables to interact with ``meson`` as required.
+
+When using ``numpy.f2py`` as a module, the following functions can be invoked.
 
 .. automodule:: numpy.f2py
     :members:

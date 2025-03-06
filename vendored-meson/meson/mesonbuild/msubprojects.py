@@ -16,11 +16,13 @@ import zipfile
 from . import mlog
 from .ast import IntrospectionInterpreter
 from .mesonlib import quiet_git, GitException, Popen_safe, MesonException, windows_proof_rmtree
-from .wrap.wrap import (Resolver, WrapException, ALL_TYPES, PackageDefinition,
+from .wrap.wrap import (Resolver, WrapException, ALL_TYPES,
                         parse_patch_url, update_wrap_file, get_releases)
 
 if T.TYPE_CHECKING:
     from typing_extensions import Protocol
+
+    from .wrap.wrap import PackageDefinition
 
     SubParsers = argparse._SubParsersAction[argparse.ArgumentParser]
 
@@ -174,7 +176,9 @@ class Runner:
         latest_version = info['versions'][0]
         new_branch, new_revision = latest_version.rsplit('-', 1)
         if new_branch != branch or new_revision != revision:
-            filename = self.wrap.filename if self.wrap.has_wrap else f'{self.wrap.filename}.wrap'
+            filename = self.wrap.original_filename
+            if not filename:
+                filename = os.path.join(self.wrap.subprojects_dir, f'{self.wrap.name}.wrap')
             update_wrap_file(filename, self.wrap.name,
                              new_branch, new_revision,
                              options.allow_insecure)
@@ -192,7 +196,7 @@ class Runner:
             # cached.
             windows_proof_rmtree(self.repo_dir)
             try:
-                self.wrap_resolver.resolve(self.wrap.name, 'meson')
+                self.wrap_resolver.resolve(self.wrap.name)
                 self.log('  -> New version extracted')
                 return True
             except WrapException as e:
@@ -248,7 +252,7 @@ class Runner:
             # avoid any data lost by mistake.
             self.git_stash()
             self.git_output(['reset', '--hard', 'FETCH_HEAD'])
-            self.wrap_resolver.apply_patch()
+            self.wrap_resolver.apply_patch(self.wrap.name)
             self.wrap_resolver.apply_diff_files()
         except GitException as e:
             self.log('  -> Could not reset', mlog.bold(self.repo_dir), 'to', mlog.bold(revision))
@@ -310,7 +314,7 @@ class Runner:
                 # Delete existing directory and redownload
                 windows_proof_rmtree(self.repo_dir)
                 try:
-                    self.wrap_resolver.resolve(self.wrap.name, 'meson')
+                    self.wrap_resolver.resolve(self.wrap.name)
                     self.update_git_done()
                     return True
                 except WrapException as e:
@@ -486,7 +490,7 @@ class Runner:
             self.log('  -> Already downloaded')
             return True
         try:
-            self.wrap_resolver.resolve(self.wrap.name, 'meson')
+            self.wrap_resolver.resolve(self.wrap.name)
             self.log('  -> done')
         except WrapException as e:
             self.log('  ->', mlog.red(str(e)))
@@ -519,16 +523,10 @@ class Runner:
             return True
 
         if self.wrap.redirected:
-            redirect_file = Path(self.wrap.original_filename).resolve()
+            wrapfile = Path(self.wrap.original_filename).resolve()
             if options.confirm:
-                redirect_file.unlink()
-            mlog.log(f'Deleting {redirect_file}')
-
-        if self.wrap.type == 'redirect':
-            redirect_file = Path(self.wrap.filename).resolve()
-            if options.confirm:
-                redirect_file.unlink()
-            self.log(f'Deleting {redirect_file}')
+                wrapfile.unlink()
+            mlog.log(f'Deleting {wrapfile}')
 
         if options.include_cache:
             packagecache = Path(self.wrap_resolver.cachedir).resolve()
@@ -601,7 +599,7 @@ class Runner:
             if not os.path.isdir(self.repo_dir):
                 self.log('  -> Not downloaded yet')
                 return True
-            self.wrap_resolver.apply_patch()
+            self.wrap_resolver.apply_patch(self.wrap.name)
             return True
         if options.save:
             if 'patch_directory' not in self.wrap.values:
@@ -636,7 +634,7 @@ def add_common_arguments(p: argparse.ArgumentParser) -> None:
                    help='Path to source directory')
     p.add_argument('--types', default='',
                    help=f'Comma-separated list of subproject types. Supported types are: {ALL_TYPES_STRING} (default: all)')
-    p.add_argument('--num-processes', default=None, type=int,
+    p.add_argument('-j', '--num-processes', default=None, type=int,
                    help='How many parallel processes to use (Since 0.59.0).')
     p.add_argument('--allow-insecure', default=False, action='store_true',
                    help='Allow insecure server connections.')
@@ -655,6 +653,8 @@ def add_wrap_update_parser(subparsers: 'SubParsers') -> argparse.ArgumentParser:
     p.set_defaults(pre_func=Runner.pre_update_wrapdb)
     return p
 
+# Note: when adding arguments, please also add them to the completion
+# scripts in $MESONSRC/data/shell-completions/
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(title='Commands', dest='command')
     subparsers.required = True
@@ -742,7 +742,7 @@ def run(options: 'Arguments') -> int:
         pre_func(options)
     logger = Logger(len(wraps))
     for wrap in wraps:
-        dirname = Path(subproject_dir, wrap.directory).as_posix()
+        dirname = Path(source_dir, subproject_dir, wrap.directory).as_posix()
         runner = Runner(logger, r, wrap, dirname, options)
         task = loop.run_in_executor(executor, runner.run)
         tasks.append(task)

@@ -1,0 +1,49 @@
+From: =?utf-8?q?Timo_R=C3=B6hling?= <roehling@debian.org>
+Date: Fri, 30 Aug 2024 17:17:59 +0200
+Subject: Disable plots to avoid circular NumPy dependency
+
+---
+ doc/source/conf.py | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/doc/source/conf.py b/doc/source/conf.py
+index 2577faf..7921f78 100644
+--- a/doc/source/conf.py
++++ b/doc/source/conf.py
+@@ -83,7 +83,6 @@ extensions = [
+     'sphinx.ext.autosummary',
+     'sphinx.ext.graphviz',
+     'sphinx.ext.ifconfig',
+-    'matplotlib.sphinxext.plot_directive',
+     'IPython.sphinxext.ipython_console_highlighting',
+     'IPython.sphinxext.ipython_directive',
+     'sphinx.ext.mathjax',
+@@ -206,11 +205,19 @@ class LegacyDirective(Directive):
+         return [admonition_node]
+ 
+ 
++class PlotDirective(Directive):
++    has_content = True
++
++    def run(self):
++        return []
++
++
+ def setup(app):
+     # add a config value for `ifconfig` directives
+     app.add_config_value('python_version_major', str(sys.version_info.major), 'env')
+     app.add_lexer('NumPyC', NumPyLexer)
+     app.add_directive("legacy", LegacyDirective)
++    app.add_directive("plot", PlotDirective)
+ 
+ 
+ # While these objects do have type `module`, the names are aliases for modules
+@@ -419,7 +426,7 @@ intersphinx_mapping = {
+ phantom_import_file = 'dump.xml'
+ 
+ # Make numpydoc to generate plots for example sections
+-numpydoc_use_plots = True
++numpydoc_use_plots = False
+ 
+ # -----------------------------------------------------------------------------
+ # Autosummary

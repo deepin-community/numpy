@@ -1,16 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
 # Copyright 2013-2014 The Meson development team
-
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#     http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 """This is (mostly) a standalone module used to write logging
 information about Meson runs. Some output goes to screen,
@@ -33,8 +22,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 if T.TYPE_CHECKING:
-    from ._typing import StringProtocol, SizedStringProtocol
+    from typing_extensions import Literal
 
+    from ._typing import StringProtocol, SizedStringProtocol
     from .mparser import BaseNode
 
     TV_Loggable = T.Union[str, 'AnsiDecorator', StringProtocol]
@@ -60,7 +50,7 @@ def _windows_ansi() -> bool:
     return bool(kernel.SetConsoleMode(stdout, mode.value | 0x4) or os.environ.get('ANSICON'))
 
 def colorize_console() -> bool:
-    _colorize_console = getattr(sys.stdout, 'colorize_console', None)  # type: bool
+    _colorize_console: bool = getattr(sys.stdout, 'colorize_console', None)
     if _colorize_console is not None:
         return _colorize_console
 
@@ -86,6 +76,7 @@ def setup_console() -> None:
             pass
 
 _in_ci = 'CI' in os.environ
+_ci_is_github = 'GITHUB_ACTIONS' in os.environ
 
 
 class _Severity(enum.Enum):
@@ -190,7 +181,7 @@ class _Logger:
             try:
                 self.log_pager.stdin.flush()
                 self.log_pager.stdin.close()
-            except BrokenPipeError:
+            except OSError:
                 pass
             self.log_pager.wait()
             self.log_pager = None
@@ -200,9 +191,9 @@ class _Logger:
         self.log_file = open(os.path.join(logdir, self._LOG_FNAME), 'w', encoding='utf-8')
         self.log_fatal_warnings = fatal_warnings
 
-    def process_markup(self, args: T.Sequence[TV_Loggable], keep: bool) -> T.List[str]:
-        arr = []  # type: T.List[str]
-        if self.log_timestamp_start is not None:
+    def process_markup(self, args: T.Sequence[TV_Loggable], keep: bool, display_timestamp: bool = True) -> T.List[str]:
+        arr: T.List[str] = []
+        if self.log_timestamp_start is not None and display_timestamp:
             arr = ['[{:.3f}]'.format(time.monotonic() - self.log_timestamp_start)]
         for arg in args:
             if arg is None:
@@ -240,21 +231,21 @@ class _Logger:
             print(cleaned, end='')
 
     def debug(self, *args: TV_Loggable, sep: T.Optional[str] = None,
-              end: T.Optional[str] = None) -> None:
-        arr = process_markup(args, False)
+              end: T.Optional[str] = None, display_timestamp: bool = True) -> None:
+        arr = process_markup(args, False, display_timestamp)
         if self.log_file is not None:
             print(*arr, file=self.log_file, sep=sep, end=end)
             self.log_file.flush()
 
     def _log(self, *args: TV_Loggable, is_error: bool = False,
              nested: bool = True, sep: T.Optional[str] = None,
-             end: T.Optional[str] = None) -> None:
-        arr = process_markup(args, False)
+             end: T.Optional[str] = None, display_timestamp: bool = True) -> None:
+        arr = process_markup(args, False, display_timestamp)
         if self.log_file is not None:
             print(*arr, file=self.log_file, sep=sep, end=end)
             self.log_file.flush()
         if colorize_console():
-            arr = process_markup(args, True)
+            arr = process_markup(args, True, display_timestamp)
         if not self.log_errors_only or is_error:
             force_print(*arr, nested=nested, sep=sep, end=end)
 
@@ -270,15 +261,20 @@ class _Logger:
     def log(self, *args: TV_Loggable, is_error: bool = False,
             once: bool = False, nested: bool = True,
             sep: T.Optional[str] = None,
-            end: T.Optional[str] = None) -> None:
+            end: T.Optional[str] = None,
+            display_timestamp: bool = True) -> None:
         if once:
-            self._log_once(*args, is_error=is_error, nested=nested, sep=sep, end=end)
+            self._log_once(*args, is_error=is_error, nested=nested, sep=sep, end=end, display_timestamp=display_timestamp)
         else:
-            self._log(*args, is_error=is_error, nested=nested, sep=sep, end=end)
+            self._log(*args, is_error=is_error, nested=nested, sep=sep, end=end, display_timestamp=display_timestamp)
+
+    def log_timestamp(self, *args: TV_Loggable) -> None:
+        if self.log_timestamp_start:
+            self.log(*args)
 
     def _log_once(self, *args: TV_Loggable, is_error: bool = False,
                   nested: bool = True, sep: T.Optional[str] = None,
-                  end: T.Optional[str] = None) -> None:
+                  end: T.Optional[str] = None, display_timestamp: bool = True) -> None:
         """Log variant that only prints a given message one time per meson invocation.
 
         This considers ansi decorated values by the values they wrap without
@@ -294,7 +290,7 @@ class _Logger:
         if t in self.logged_once:
             return
         self.logged_once.add(t)
-        self._log(*args, is_error=is_error, nested=nested, sep=sep, end=end)
+        self._log(*args, is_error=is_error, nested=nested, sep=sep, end=end, display_timestamp=display_timestamp)
 
     def _log_error(self, severity: _Severity, *rargs: TV_Loggable,
                    once: bool = False, fatal: bool = True,
@@ -307,7 +303,7 @@ class _Logger:
         # The typing requirements here are non-obvious. Lists are invariant,
         # therefore T.List[A] and T.List[T.Union[A, B]] are not able to be joined
         if severity is _Severity.NOTICE:
-            label = [bold('NOTICE:')]  # type: TV_LoggableList
+            label: TV_LoggableList = [bold('NOTICE:')]
         elif severity is _Severity.WARNING:
             label = [yellow('WARNING:')]
         elif severity is _Severity.ERROR:
@@ -368,7 +364,7 @@ class _Logger:
         if prefix is None:
             prefix = red('ERROR:')
         self.log()
-        args = []  # type: T.List[T.Union[AnsiDecorator, str]]
+        args: T.List[T.Union[AnsiDecorator, str]] = []
         if all(getattr(e, a, None) is not None for a in ['file', 'lineno', 'colno']):
             # Mypy doesn't follow hasattr, and it's pretty easy to visually inspect
             # that this is correct, so we'll just ignore it.
@@ -419,6 +415,7 @@ get_log_dir = _logger.get_log_dir
 get_warning_count = _logger.get_warning_count
 initialize = _logger.initialize
 log = _logger.log
+log_timestamp = _logger.log_timestamp
 nested = _logger.nested
 nested_warnings = _logger.nested_warnings
 no_logging = _logger.no_logging
@@ -545,3 +542,30 @@ def code_line(text: str, line: str, colno: int) -> str:
     :return: A formatted string of the text, line, and a caret
     """
     return f'{text}\n{line}\n{" " * colno}^'
+
+@T.overload
+def ci_fold_file(fname: T.Union[str, os.PathLike], banner: str, force: Literal[True] = True) -> str: ...
+
+@T.overload
+def ci_fold_file(fname: T.Union[str, os.PathLike], banner: str, force: Literal[False] = False) -> T.Optional[str]: ...
+
+def ci_fold_file(fname: T.Union[str, os.PathLike], banner: str, force: bool = False) -> T.Optional[str]:
+    if not _in_ci and not force:
+        return None
+
+    if _ci_is_github:
+        header = f'::group::==== {banner} ===='
+        footer = '::endgroup::'
+    elif force:
+        header = banner
+        footer = ''
+    elif 'MESON_FORCE_SHOW_LOGS' in os.environ:
+        header = f'==== Forcing display of logs for {os.path.basename(fname)} ===='
+        footer = ''
+    else:
+        # only github is implemented
+        return None
+
+    with open(fname, 'r', encoding='utf-8') as f:
+        data = f.read()
+    return f'{header}\n{data}\n{footer}\n'

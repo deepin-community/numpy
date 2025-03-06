@@ -127,7 +127,7 @@ class DependencyFallbacksHolder(MesonInterpreterObject):
         func_kwargs.setdefault('version', [])
         if 'default_options' in kwargs and isinstance(kwargs['default_options'], str):
             func_kwargs['default_options'] = listify(kwargs['default_options'])
-        self.interpreter.do_subproject(subp_name, 'meson', func_kwargs)
+        self.interpreter.do_subproject(subp_name, func_kwargs)
         return self._get_subproject_dep(subp_name, varname, kwargs)
 
     def _get_subproject(self, subp_name: str) -> T.Optional[SubprojectHolder]:
@@ -315,8 +315,7 @@ class DependencyFallbacksHolder(MesonInterpreterObject):
             return self._notfound_dependency()
 
         # Check if usage of the subproject fallback is forced
-        wrap_mode = self.coredata.get_option(OptionKey('wrap_mode'))
-        assert isinstance(wrap_mode, WrapMode), 'for mypy'
+        wrap_mode = WrapMode.from_string(self.coredata.get_option(OptionKey('wrap_mode')))
         force_fallback_for = self.coredata.get_option(OptionKey('force_fallback_for'))
         assert isinstance(force_fallback_for, list), 'for mypy'
         self.nofallback = wrap_mode == WrapMode.nofallback

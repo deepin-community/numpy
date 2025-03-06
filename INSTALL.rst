@@ -14,13 +14,13 @@ Prerequisites
 
 Building NumPy requires the following installed software:
 
-1) Python__ 3.9.x or newer.
+1) Python__ 3.10.x or newer.
 
    Please note that the Python development headers also need to be installed,
    e.g., on Debian/Ubuntu one needs to install both `python3` and
    `python3-dev`. On Windows and macOS this is normally not an issue.
 
-2) Cython >= 0.29.30 but < 3.0
+2) Cython >= 3.0.6
 
 3) pytest__ (optional)
 
@@ -44,11 +44,16 @@ Hypothesis__ https://hypothesis.readthedocs.io/en/latest/
 .. note::
 
    More extensive information on building NumPy is maintained at
-   https://numpy.org/devdocs/user/building.html#building-from-source
+   https://numpy.org/devdocs/building/#building-numpy-from-source
 
 
-Basic Installation
+Basic installation
 ==================
+
+If this is a clone of the NumPy git repository, then first initialize
+the ``git`` submodules::
+
+    git submodule update --init
 
 To install NumPy, run::
 
@@ -107,7 +112,7 @@ Configuring which BLAS/LAPACK is used if you have multiple libraries installed
 is done via a ``--config-settings`` CLI flag - if not given, the default choice
 is OpenBLAS. If your installed library is in a non-standard location, selecting
 that location is done via a pkg-config ``.pc`` file.
-See http://scipy.github.io/devdocs/building/blas_lapack.html for more details.
+See https://scipy.github.io/devdocs/building/blas_lapack.html for more details.
 
 Windows
 -------

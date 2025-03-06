@@ -1,0 +1,47 @@
+From: =?utf-8?q?Timo_R=C3=B6hling?= <roehling@debian.org>
+Date: Mon, 16 Sep 2024 23:16:17 +0200
+Subject: Fix numpy.get_include() for cross builds
+
+---
+ numpy/f2py/_backends/meson.build.template |  1 -
+ numpy/lib/_utils_impl.py                  | 15 ++++++++++++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/numpy/f2py/_backends/meson.build.template b/numpy/f2py/_backends/meson.build.template
+index fdcc1b1..32b4a71 100644
+--- a/numpy/f2py/_backends/meson.build.template
++++ b/numpy/f2py/_backends/meson.build.template
+@@ -24,7 +24,6 @@ incdir_f2py = run_command(py,
+ inc_np = include_directories(incdir_numpy)
+ np_dep = declare_dependency(include_directories: inc_np)
+ 
+-incdir_f2py = incdir_numpy / '..' / '..' / 'f2py' / 'src'
+ inc_f2py = include_directories(incdir_f2py)
+ fortranobject_c = incdir_f2py / 'fortranobject.c'
+ 
+diff --git a/numpy/lib/_utils_impl.py b/numpy/lib/_utils_impl.py
+index c2f0f31..2df2bc8 100644
+--- a/numpy/lib/_utils_impl.py
++++ b/numpy/lib/_utils_impl.py
+@@ -109,9 +109,18 @@ def get_include():
+         # running from numpy source directory
+         d = os.path.join(os.path.dirname(numpy.__file__), '_core', 'include')
+     else:
+-        # using installed numpy core headers
+-        import numpy._core as _core
+-        d = os.path.join(os.path.dirname(_core.__file__), 'include')
++        # query multiarch triplet from sysconfig
++        import sysconfig
++        multiarch = sysconfig.get_config_var("MULTIARCH")
++        d = None
++        if multiarch is not None:
++            d = f"/usr/lib/{multiarch}/python3-numpy/numpy/_core/include"
++            if not os.path.isdir(d):
++                d = None
++        if d is None:
++            # using _core module path as fallback
++            import numpy._core as _core
++            d = os.path.join(os.path.dirname(_core.__file__), 'include')
+     return d
+ 
+ 

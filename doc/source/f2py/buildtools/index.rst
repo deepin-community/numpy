@@ -1,7 +1,7 @@
 .. _f2py-bldsys:
 
 =======================
-F2PY and Build Systems
+F2PY and build systems
 =======================
 
 In this section we will cover the various popular build systems and their usage
@@ -24,7 +24,7 @@ with ``f2py``.
    See :ref:`f2py-meson-distutils` for migration information.
 
 
-Basic Concepts
+Basic concepts
 ===============
 
 Building an extension module which includes Python and Fortran consists of:
@@ -101,7 +101,7 @@ the more popular systems.
    ``make`` has no place in a modern multi-language setup, and so is not
    discussed further.
 
-Build Systems
+Build systems
 ==============
 
 .. toctree::

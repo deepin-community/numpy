@@ -1,0 +1,5 @@
+debian/dh_numpy3 usr/bin
+debian/numpy3.pm usr/share/perl5/Debian/Debhelper/Sequence/
+debian/versions usr/share/numpy3/
+tools/swig/numpy.i usr/lib/${DEB_HOST_MULTIARCH}/python3-numpy/numpy/_core/include/numpy
+usr/lib/${DEB_HOST_MULTIARCH}
