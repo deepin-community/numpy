@@ -1,0 +1,33 @@
+diff --git a/numpy/core/include/numpy/npy_cpu.h b/numpy/core/include/numpy/npy_cpu.h
+index a19f8e6..e8d98ce 100644
+--- a/numpy/core/include/numpy/npy_cpu.h
++++ b/numpy/core/include/numpy/npy_cpu.h
+@@ -11,6 +11,7 @@
+  *              NPY_CPU_IA64
+  *              NPY_CPU_HPPA
+  *              NPY_CPU_ALPHA
++ *              NPY_CPU_SW_64
+  *              NPY_CPU_ARMEL
+  *              NPY_CPU_ARMEB
+  *              NPY_CPU_SH_LE
+@@ -64,6 +65,8 @@
+     #define NPY_CPU_HPPA
+ #elif defined(__alpha__)
+     #define NPY_CPU_ALPHA
++#elif defined(__sw_64__)
++    #define NPY_CPU_SW_64
+ #elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
+     /* _M_ARM64 is defined in MSVC for ARM64 compilation on Windows */
+     #if defined(__ARMEB__) || defined(__AARCH64EB__)
+diff --git a/numpy/core/include/numpy/npy_endian.h b/numpy/core/include/numpy/npy_endian.h
+index 5e58a7f..6c1df9e 100644
+--- a/numpy/core/include/numpy/npy_endian.h
++++ b/numpy/core/include/numpy/npy_endian.h
+@@ -41,6 +41,7 @@
+             || defined(NPY_CPU_AMD64)         \
+             || defined(NPY_CPU_IA64)          \
+             || defined(NPY_CPU_ALPHA)         \
++            || defined(NPY_CPU_SW_64)         \
+             || defined(NPY_CPU_ARMEL)         \
+             || defined(NPY_CPU_ARMEL_AARCH32) \
+             || defined(NPY_CPU_ARMEL_AARCH64) \
