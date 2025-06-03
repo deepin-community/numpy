@@ -9,3 +9,4 @@
 0009-Disable-version-and-theme-switchers-in-documentation.patch
 0010-Prevent-random-object-file-names-in-debuginfo.patch
 0011-Ignore-distutils-for-Python-3.12-and-later.patch
+0001-deepin-sw_64-support.diff
