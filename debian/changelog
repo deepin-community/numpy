@@ -1,3 +1,9 @@
+numpy (1:2.2.3+ds-4deepin1) unstable; urgency=medium
+
+  * feat: add sw64 support
+
+ -- lichenggang <lichenggang@deepin.org>  Thu, 17 Jul 2025 20:39:56 +0800
+
 numpy (1:2.2.3+ds-4) unstable; urgency=medium
 
   * Add --force option to dh_numpy3 and improve detection
