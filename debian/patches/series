@@ -6,3 +6,4 @@
 0006-Disable-unsupported-add-ons-in-documentation.patch
 0007-Disable-plots-to-avoid-circular-NumPy-dependency.patch
 0008-Fix-numpy.get_include-for-cross-builds.patch
+0001-deepin-sw_64-support.diff
